@@ -1,4 +1,4 @@
-package chess;
+package chess.board;
 
 import java.util.ArrayList;
 
@@ -107,7 +107,7 @@ public class Move implements Comparable<Move>
 		board.getPiece(to).moves++;
 		if(castlingMove){
 			boolean left = to.x < 3;
-			int y = me == board.rules.topPlayer ? 0 : 7;
+			int y = me == board.rules.isTopPlayer() ? 0 : 7;
 			if(left){
 				Rook rook = (Rook)board.removePiece(new Point(0, y), me);
 				board.putPiece(rook, new Point(3, y));
@@ -123,7 +123,7 @@ public class Move implements Comparable<Move>
 		}
 		else if(changedTo != null)
 			board.putPiece(changedTo, to);
-		if(checks != null && checks && board.rules.cantCastleAfterCheck)
+		if(checks != null && checks && board.rules.isCantCastleAfterCheck())
 			board.getKing(!me).moves = 1;
 		board.history.push(this);
 		return captured;
@@ -154,7 +154,7 @@ public class Move implements Comparable<Move>
 			board.getKing(!me).moves = 0;
 		if(castlingMove){
 			boolean left = to.x < 4;
-			int y = me == board.rules.topPlayer ? 0 : 7;
+			int y = me == board.rules.isTopPlayer() ? 0 : 7;
 			if(left){
 				Rook rook = (Rook)board.removePiece(new Point(3, y), me);
 				rook.position = new Point(0, y);
@@ -187,7 +187,7 @@ public class Move implements Comparable<Move>
 			for(Move move: piece.getMoves(board, p)){
 				if(move.capturedKing){
 					undoMove();
-					if(board.rules.cantCastleAfterCheck && !(board.getKing(!me).moves > 0))
+					if(board.rules.isCantCastleAfterCheck() && !(board.getKing(!me).moves > 0))
 						checks = true;
 					return true;
 				}

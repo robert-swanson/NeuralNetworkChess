@@ -2,9 +2,9 @@ package chess.pieces;
 
 import java.util.ArrayList;
 
-import chess.Board;
-import chess.Move;
-import chess.Point;
+import chess.board.Board;
+import chess.board.Move;
+import chess.board.Point;
 
 public class Rook extends Piece
 {

@@ -1,4 +1,4 @@
-package chess;
+package chess.ai;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -7,6 +7,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Scanner;
 
+import chess.ai.AI;
+import chess.board.Board;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 
@@ -62,16 +64,16 @@ public class Tester {
 		}
 		public void setUpBoard(Board board){
 			board.white.stratagy.addRand = false;
-			board.white.stratagy.alphaBeta = true;
+			board.white.stratagy.setAlphaBeta(true);
 
-			board.white.stratagy.depth = depth;
-			board.white.stratagy.checkDepth = checkDepth;
-			board.white.stratagy.transpositionTable = transpositionTable;
-			board.white.stratagy.transpositionTableDepth = transpositionTableDepth;
-			board.white.stratagy.iterativeDeepening = iterativeDeepening;
-			board.white.stratagy.iterativedeepeningDepth = iterativeDeepeningDepth;
-			board.white.stratagy.killerHeuristic = killerHeuristic;
-			board.white.stratagy.killerHeuristicDepth = killerHeuristicDepth;
+			board.white.stratagy.setDepth(depth);
+			board.white.stratagy.setCheckDepth(checkDepth);
+			board.white.stratagy.setTranspositionTable(transpositionTable);
+			board.white.stratagy.setTranspositionTableDepth(transpositionTableDepth);
+			board.white.stratagy.setIterativeDeepening(iterativeDeepening);
+			board.white.stratagy.setIterativedeepeningDepth(iterativeDeepeningDepth);
+			board.white.stratagy.setKillerHeuristic(killerHeuristic);
+			board.white.stratagy.setKillerHeuristicDepth(killerHeuristicDepth);
 		}
 		
 		@Override

@@ -1,9 +1,11 @@
-package chess;
+package chess.board;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Stack;
 
+import chess.ai.AI;
+import chess.ai.Strategy;
 import chess.pieces.Bishop;
 import chess.pieces.King;
 import chess.pieces.Knight;
@@ -18,134 +20,7 @@ import javafx.beans.property.SimpleDoubleProperty;
  * Manages the black and white pieces
  */
 public class Board {
-	public static class RuleSet{
-		public enum TimeLimit{
-			off,total,turn;
-			int seconds;
-			int minutes;
-			private TimeLimit() {
-				seconds = 0;
-				minutes = 0;
-			}
-			public int toSeconds(){
-				return (minutes * 60 + seconds);
-			}
-			@Override
-			public String toString() {
-				switch (this) {
-				case off:
-					return "Off";
-				case total:
-					return String.format("Total: %dm %ds",minutes, seconds);
-				case turn:
-					return String.format("Turn: %dm %ds",minutes, seconds);
-				default:
-					return "Other";
-				}
-			}
-		}
-		public enum GameMode{
-			pvp, pvc, cvc;
-			@Override
-			public String toString() {
-				switch (this) {
-				case pvp:
-					return "Player vs Player";
-				case pvc:
-					return "Player vs Computer";
-				case cvc:
-					return "Computer vs Computer";
-				default:
-					return "Unkown GameMode";
-				}
-			}
-		}
-		public GameMode mode;
-		public boolean debug;
-		public boolean undo;
-		public boolean cantCastleThroughCheck;
-		public boolean cantCastleAfterCheck;
-		public boolean topPlayer;
-		public boolean computerPlayer;
-		
-		TimeLimit timeLimit;
-
-		public RuleSet(String importString){
-			this();
-			String[] sa = importString.split(":");
-			if(sa.length != 3)
-				return;
-			int mode = Integer.parseInt(sa[0]);
-			int top = Integer.parseInt(sa[1]);
-			int comp = Integer.parseInt(sa[2]);
-			if(mode == 0)
-				this.mode = GameMode.pvp;
-			else if(mode == 1)
-				this.mode = GameMode.pvc;
-			else
-				this.mode = GameMode.cvc;
-			topPlayer = top == 1;
-			computerPlayer = comp == 1;
-			}
-		public RuleSet() {
-			mode = GameMode.pvc;
-			cantCastleThroughCheck = true;
-			cantCastleAfterCheck = false;
-			topPlayer = false;
-			timeLimit = TimeLimit.off;
-			timeLimit.seconds = 0;
-			computerPlayer = false;
-			undo = true;
-			debug = false;
-		}
-		@Override
-		public String toString() {
-		return String.format("Rules\n"
-				+ "Mode: %s\n"
-				+ "Can't Castle Through Check: %b\n"
-				+ "Can't Castle After Check: %b\n"
-				+ "Top Player: %s\n"
-				+ "Computer Player: %s\n"
-				+ "Time Limit: %s\n", mode, cantCastleThroughCheck, cantCastleAfterCheck, (topPlayer ? "White" : "Black"), (computerPlayer ? "White" : "Black"), timeLimit);
-		}
-		public String export(){
-			int m = -1;
-			switch(mode){
-			case pvp:
-				m = 0;
-				break;
-			case pvc:
-				m = 1;
-				break;
-			case cvc:
-				m = 2;
-				break;
-			}
-			return String.format("%d:%d:%d", m, topPlayer ? 1 : 0, computerPlayer ? 1 : 0);
-		}
-	}
-	public enum State{
-		INPROGRESS, WHITEWON, BLACKWON, STALEMATE;
-		@Override
-		public String toString() {
-			switch (this) {
-			case INPROGRESS:
-				return "Game In Progress";
-			case WHITEWON:
-				return "White Won!";
-			case BLACKWON:
-				return "Black Won!";
-			case STALEMATE:
-				return "Stalemate!";
-			default:
-				return "Other";
-			}
-		}
-		
-	}
-	
-	
-	/**
+/**
 	 * Describes a piece on the board
 	 */
 	//TODO: Make getters and setters for members
@@ -176,7 +51,7 @@ public class Board {
 	SimpleDoubleProperty blackTime;
 
 	/**
-	 * Initailizes the pieces on the board according to what player is on the top
+	 * Initializes the pieces on the board according to what player is on the top
  	 * @param allowance
 	 * @param p
 	 */
@@ -223,14 +98,14 @@ public class Board {
 		rules = new RuleSet(input[4]);
 		
 		//Stratagy
-		white.stratagy = white.new Stratagy(input[5]);
-		black.stratagy = black.new Stratagy(input[6]);
+		white.stratagy = new Strategy(input[5]);
+		black.stratagy = new Strategy(input[6]);
 	}
 	
 	public void setUpBoard(){
 		white.resetKHTT();
 		black.resetKHTT();
-		boolean topPlayer = rules.topPlayer;
+		boolean topPlayer = rules.isTopPlayer();
 		gameState = State.INPROGRESS;
 		whitePieces  = new HashMap<>();
 		blackPieces  = new HashMap<>();
@@ -358,7 +233,7 @@ public class Board {
 	 */
 	
 	public Piece validPos(Piece piece, Point pos) {
-		boolean top = rules.topPlayer == piece.isWhite();
+		boolean top = rules.isTopPlayer() == piece.isWhite();
 		if(piece instanceof Pawn) {
 				if(pos.y == 0 || pos.y == 7) 
 					return null;
@@ -406,7 +281,7 @@ public class Board {
 			return blackPieces.get(p);
 	}
 	public SimpleDoubleProperty getTime(boolean top){
-		if(top == rules.topPlayer)
+		if(top == rules.isTopPlayer())
 			return whiteTime;
 		else
 			return blackTime;
@@ -483,7 +358,7 @@ public class Board {
 	}
 	
 	public void addCastleMoves(ArrayList<Move> moves, boolean color){
-		int y = rules.topPlayer==color ? 0 : 7;
+		int y = rules.isTopPlayer() ==color ? 0 : 7;
 		King king = getKing(color);
 		if(king.moves > 0 || !king.position.equals(new Point(4, y)))
 			return;
@@ -495,7 +370,7 @@ public class Board {
 		for(int x = 3; x > 0 && validL; x--){
 			if(getWhoOccupiesAt(new Point(x, y)) != null)
 				validL = false;
-			if(validL && rules.cantCastleThroughCheck){
+			if(validL && rules.isCantCastleThroughCheck()){
 				Move test = new Move(new Point(4, y), new Point(x, y), this);
 				if(test.putsPlayerInCheck(test.me)){
 					validL = false;
@@ -510,7 +385,7 @@ public class Board {
 		for(int x = 5; x < 7 && validR; x++){
 			if(getWhoOccupiesAt(new Point(x, y)) != null)
 				validR = false;
-			if(validR && rules.cantCastleThroughCheck){
+			if(validR && rules.isCantCastleThroughCheck()){
 				Move test = new Move(new Point(4, y), new Point(x, y), this);
 				if(test.putsPlayerInCheck(test.me)){
 					validR = false;
@@ -573,11 +448,11 @@ public class Board {
 		return null;
 	}
 	public boolean getIsAIPlayer(){
-		if(rules.mode == RuleSet.GameMode.cvc)
+		if(rules.getMode() == RuleSet.GameMode.cvc)
 			return true;
-		if(rules.mode == RuleSet.GameMode.pvp)
+		if(rules.getMode() == RuleSet.GameMode.pvp)
 			return false;
-		if(rules.computerPlayer == turn)
+		if(rules.isComputerPlayer() == turn)
 			return true;
 		return false;
 	}

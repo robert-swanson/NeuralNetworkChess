@@ -1,4 +1,4 @@
-package chess;
+package application;
 
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;

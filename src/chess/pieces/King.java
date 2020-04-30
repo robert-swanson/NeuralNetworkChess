@@ -2,9 +2,9 @@ package chess.pieces;
 
 import java.util.ArrayList;
 
-import chess.Board;
-import chess.Move;
-import chess.Point;
+import chess.board.Board;
+import chess.board.Move;
+import chess.board.Point;
 
 public class King extends Piece
 {	
@@ -25,7 +25,7 @@ public class King extends Piece
 			Boolean who = board.getWhoOccupiesAt(to);
 			if(to.isInBoard() && (who == null || who == !color)){
 				moves.add(new Move(pos, to, board));
-				int y = board.rules.topPlayer == isWhite() ? 0 : 7;
+				int y = board.rules.isTopPlayer() == isWhite() ? 0 : 7;
 				if(to.y == y && (to.x == 2 || to.x == 4))
 					maybeCastle = true;
 			}

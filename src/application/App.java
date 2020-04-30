@@ -1,20 +1,20 @@
 package application;
+
+import chess.ai.Tester;
+import chess.board.RuleSet.GameMode;
+import chess.ai.AI;
+import chess.board.Board;
+import chess.board.Move;
+import chess.board.Point;
+import chess.board.State;
+import chess.pieces.*;
+
 import java.awt.Desktop;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Stack;
-
-import chess.*;
-import chess.Board.RuleSet.GameMode;
-import chess.pieces.Bishop;
-import chess.pieces.King;
-import chess.pieces.Knight;
-import chess.pieces.Pawn;
-import chess.pieces.Piece;
-import chess.pieces.Queen;
-import chess.pieces.Rook;
 import javafx.animation.Animation.Status;
 import javafx.animation.FadeTransition;
 import javafx.animation.KeyFrame;
@@ -64,72 +64,7 @@ import javafx.util.Duration;
  * @author Robert Swanson
  */
 public class App extends Application {
-	/**
-	 * Handles displaying game messages to the user
-	 * @author Robert Swanson
-	 */
-	public class Messages{
-		public Label label;
-		public Board.State gameState;
-		private Timeline tl;
-		private Duration duration;
-		FadeTransition fade;
 
-		private void updateTimeLine(Duration d){
-			duration = d;
-			tl = new Timeline(new KeyFrame(
-					d,
-					ae -> fade()));
-		}
-		public Messages(Label l) {
-			label = l;
-			fade = new FadeTransition();
-			updateTimeLine(Duration.ZERO);
-		}
-		public void invalidMove(){
-			message("Invalid Move", Duration.seconds(3));
-		}
-		public void notYourTurn(){
-			message("It's not your turn",Duration.seconds(3));
-		}
-		public void gameOver(){
-			progress.set(0.0);
-			if(gameState == Board.State.BLACKWON)
-				message("Black Won!", Duration.INDEFINITE);
-			else if(gameState == Board.State.WHITEWON)
-				message("White Won!", Duration.INDEFINITE);
-			else if(gameState == Board.State.STALEMATE)
-				message("Stalemate!",Duration.INDEFINITE);
-			else
-				message("Game Over ERROR", Duration.seconds(3));
-		}
-
-		private void message(String message, Duration d){
-			tl.stop();
-			fade.stop();
-			updateTimeLine(d);
-			label.setOpacity(1);
-			label.setText(message);
-			tl.play();
-		}
-		private void fade(){
-			if(duration == Duration.INDEFINITE)
-				return;
-			fade = new FadeTransition();
-			fade.setNode(label);
-			fade.setDuration(Duration.seconds(1));
-			fade.setFromValue(1.0);
-			fade.setToValue(0.0);
-			label.setOpacity(1);
-			fade.setOnFinished(e -> label.setText(""));
-			fade.play();
-		}
-		private void clear(){
-			label.setText("");
-			tl.stop();
-			fade.stop();
-		}
-	}
 
 	//Constants
 	final double Animation_Duration = .2; 
@@ -342,7 +277,7 @@ public class App extends Application {
 			select(selected);
 
 		double h = canvas.getHeight();
-		double y = board.turn == board.rules.topPlayer ?  0: h; 
+		double y = board.turn == board.rules.isTopPlayer() ?  0: h;
 		gc.setStroke(board.getIsAIPlayer() ? Color.RED : Color.BLUE);
 		gc.setLineWidth(step*.1);
 		gc.strokeLine(0, y, h, y);
@@ -431,9 +366,9 @@ public class App extends Application {
 
 			Button edit = new Button("Edit");
 			edit.setOnAction(e -> {
-				if(board.rules.mode == GameMode.pvc && board.getIsAIPlayer())
+				if(board.rules.getMode() == GameMode.pvc && board.getIsAIPlayer())
 					messages.message("Please wait until the AI has moved before editing", Duration.seconds(5));
-				else if(board.rules.mode == GameMode.cvc && AIStatus != Status.RUNNING)
+				else if(board.rules.getMode() == GameMode.cvc && AIStatus != Status.RUNNING)
 					messages.message("Please pause the AIs before editing", Duration.seconds(5));
 				else {
 					editing = true;
@@ -450,7 +385,7 @@ public class App extends Application {
 
 			Button undo = new Button("Undo");
 			undo.setOnAction(e -> {
-				switch(board.rules.mode){
+				switch(board.rules.getMode()){
 				case cvc:
 					if(AIStatus == Status.PAUSED)
 						undo(Animation_Duration);
@@ -490,7 +425,7 @@ public class App extends Application {
 
 			Button pausePlay = new Button(AIStatus == Status.PAUSED ? "Play" : "Pause");
 			pausePlay.setOnAction(e -> {
-				if(board.rules.mode == GameMode.cvc){
+				if(board.rules.getMode() == GameMode.cvc){
 					if(AIStatus == Status.PAUSED){
 						pausePlay.setText("Pause");
 						AIStatus = Status.RUNNING;
@@ -551,15 +486,15 @@ public class App extends Application {
 
 
 			buttons.getChildren().addAll(sButton, reset, hist, edit);
-			if(board.rules.undo)
+			if(board.rules.isUndo())
 				buttons.getChildren().addAll(undo);
-			if(board.rules.mode != GameMode.cvc)
+			if(board.rules.getMode() != GameMode.cvc)
 				buttons.getChildren().addAll(reanimate);
 			else{
 				buttons.getChildren().addAll(pausePlay);
 				buttons.getChildren().addAll(stepT);	
 			}
-			if(board.rules.debug){
+			if(board.rules.isDebug()){
 				Separator sep = new Separator(Orientation.VERTICAL);
 				buttons.getChildren().addAll(sep, print, tree, sync, test);
 			}
@@ -689,9 +624,7 @@ public class App extends Application {
 			castleBL.setOnAction(e -> {
 				setPieceCastle(true, false, castleBL.isSelected());
 			});
-			castleBR.setOnAction(e -> {
-				setPieceCastle(false, false, castleBR.isSelected());
-			});
+			castleBR.setOnAction(e -> setPieceCastle(false, false, castleBR.isSelected()));
 
 			updateCastleCheckBoxes();
 
@@ -713,8 +646,8 @@ public class App extends Application {
 	}
 	
 	private void setPieceCastle(boolean left, boolean color, boolean canCaslte) {
-		Piece k = board.getPiece(new Point(board.rules.topPlayer ? 3 : 4, color == board.rules.topPlayer ? 0 : 7));
-		Piece p = board.getPiece(new Point(left ? 0 : 7,board.rules.topPlayer == color ? 0 : 7));
+		Piece k = board.getPiece(new Point(board.rules.isTopPlayer() ? 3 : 4, color == board.rules.isTopPlayer() ? 0 : 7));
+		Piece p = board.getPiece(new Point(left ? 0 : 7, board.rules.isTopPlayer() == color ? 0 : 7));
 		if(p != null)
 			p.moves = canCaslte ? 0 : Math.max(1, p.moves);
 		if(canCaslte)
@@ -724,7 +657,7 @@ public class App extends Application {
 	
 
 	private void updateCastleCheckBoxes() {
-		boolean top = board.rules.topPlayer;
+		boolean top = board.rules.isTopPlayer();
 		int wy = top ? 0 : 7;
 		int by = top ? 7 : 0;
 		Piece whiteKing = top ? board.getPiece(new Point(3,0)) : board.getPiece(new Point(4,7));
@@ -1014,11 +947,12 @@ public class App extends Application {
 		double[] coord = getCanvasCoord(x, y);
 		Point clicked = getPoint(coord[0],coord[1]);
 		if(!editing) {
-			if(board.gameState != Board.State.INPROGRESS){
+			if(board.gameState != State.INPROGRESS){
 				messages.gameOver();
+				progress.set(0.0);
 				return;
 			}
-			if(board.rules.mode.toString().equals("Computer vs Computer")){
+			if(board.rules.getMode().toString().equals("Computer vs Computer")){
 				System.out.println("CVC");
 				return;	
 			}
@@ -1215,7 +1149,7 @@ public class App extends Application {
 
 				if(m.castlingMove){
 					boolean left = m.to.x < 3;
-					int y = m.me == board.rules.topPlayer ? 0 : 7;
+					int y = m.me == board.rules.isTopPlayer() ? 0 : 7;
 					if(left){
 						animateMove(new Point(0, y), new Point(3, y), Animation_Duration).play();
 					}
@@ -1224,9 +1158,10 @@ public class App extends Application {
 					}
 				}
 				initiateBoard();
-				if(board.gameState != Board.State.INPROGRESS){
-					messages.gameState = board.gameState;
+				if(board.gameState != State.INPROGRESS){
+					messages.setGameState(board.gameState);
 					messages.gameOver();
+					progress.set(0.0);
 				}
 				board.updateIcon();
 				int temp = board.hashCode(board.white.keys);
@@ -1245,7 +1180,7 @@ public class App extends Application {
 
 	private void setOnAIMoveOnFinish(Transition t){
 		t.setOnFinished(e -> {
-			if(board.getIsAIPlayer() && board.gameState == Board.State.INPROGRESS && allowance.get() && (AIStatus == Status.RUNNING || board.rules.mode == GameMode.pvc))
+			if(board.getIsAIPlayer() && board.gameState == State.INPROGRESS && allowance.get() && (AIStatus == Status.RUNNING || board.rules.getMode() == GameMode.pvc))
 				new AIMove(board).start();
 			animations.remove(t);
 		});
@@ -1339,7 +1274,7 @@ public class App extends Application {
 			}
 			if(m.castlingMove){
 				boolean left = m.to.x < 4;
-				int y = m.me == board.rules.topPlayer ? 0 : 7;
+				int y = m.me == board.rules.isTopPlayer() ? 0 : 7;
 				if(left)
 					animateMove(new Point(3, y), new Point(0, y), d);
 				else
@@ -1430,7 +1365,7 @@ public class App extends Application {
 					System.out.println("Calculation Interrupted By User");
 					return;
 				}
-				System.out.println(board.black.stratagy.transpositionTableDepth);
+				System.out.println(board.black.stratagy.getTranspositionTableDepth());
 				System.out.println("Calculation Failed");
 				throw e;
 			}

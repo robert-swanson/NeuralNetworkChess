@@ -2,9 +2,9 @@ package chess.pieces;
 
 import java.util.ArrayList;
 
-import chess.Board;
-import chess.Move;
-import chess.Point;
+import chess.board.Board;
+import chess.board.Move;
+import chess.board.Point;
 
 public class Pawn extends Piece
 {
@@ -16,7 +16,7 @@ public class Pawn extends Piece
 
 	public ArrayList<Move> getMoves(Board board, Point pos)
 	{
-		boolean up = board.rules.topPlayer != this.color;
+		boolean up = board.rules.isTopPlayer() != this.color;
 		ArrayList<Move> moves = new ArrayList<Move>();
 		Point jump = pos.getNewPoint(2, (up ? 0 : 4));
 		Boolean jumpO = board.getWhoOccupiesAt(jump);
