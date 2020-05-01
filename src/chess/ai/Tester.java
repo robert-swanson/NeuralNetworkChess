@@ -7,7 +7,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Scanner;
 
-import chess.ai.AI;
 import chess.board.Board;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
@@ -94,7 +93,7 @@ public class Tester {
 	PrintWriter logger;
 	ArrayList<Test> tests;
 
-	AI ai;
+	Minimax ai;
 	Board board;
 	SimpleBooleanProperty allowance;
 	SimpleDoubleProperty progress;

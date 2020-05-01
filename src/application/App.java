@@ -2,7 +2,7 @@ package application;
 
 import chess.ai.Tester;
 import chess.board.RuleSet.GameMode;
-import chess.ai.AI;
+import chess.ai.Minimax;
 import chess.board.Board;
 import chess.board.Move;
 import chess.board.Point;
@@ -699,7 +699,7 @@ public class App extends Application {
 	}
 
 	private ImageView getImageView(String s, boolean color) {
-		String name = (color ? "White_" : "Black_") + s + ".png";
+		String name =  "../resources/" + (color ? "White_" : "Black_") + s + ".png";
 		ImageView icon = new ImageView(getClass().getResource(name).toString());
 		icon.setPreserveRatio(true);
 		icon.setFitHeight(17);
@@ -1343,7 +1343,7 @@ public class App extends Application {
 	}
 
 	class AIMove extends Thread{
-		AI ai;
+		Minimax ai;
 		boolean valid;
 		public AIMove(Board board) {
 			valid = board.getIsAIPlayer();
@@ -1355,7 +1355,7 @@ public class App extends Application {
 		@Override
 		public void run() {
 			allowance.set(true);
-			AI ai = board.getAI();
+			Minimax ai = board.getAI();
 			Move move = null;
 			try{
 				move = ai.getBestMove();

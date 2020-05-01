@@ -4,7 +4,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Stack;
 
-import chess.ai.AI;
+import chess.ai.Minimax;
+import chess.ai.Player;
 import chess.ai.Strategy;
 import chess.pieces.Bishop;
 import chess.pieces.King;
@@ -27,8 +28,8 @@ public class Board {
 	public HashMap<Point, Piece> whitePieces;
 	public HashMap<Point, Piece> blackPieces;
 
-	public AI black;
-	public AI white;
+	public Player black;
+	public Player white;
 	
 	King whiteKing;
 	King blackKing;
@@ -56,8 +57,8 @@ public class Board {
 	 * @param p
 	 */
 	public Board(SimpleBooleanProperty allowance, SimpleDoubleProperty p) {
-		black = new AI(this, false, allowance, p);
-		white = new AI(this, true, allowance, p);
+		black = new Minimax(this, false, allowance, p);
+		white = new Minimax(this, true, allowance, p);
 		rules = new RuleSet();
 		setUpBoard();
 		gameState = State.INPROGRESS;
@@ -191,7 +192,7 @@ public class Board {
 //		moves.add(m);
 //		setCaptures(moves);
 		boolean rv = m.doMove();
-		AI.updateGameState(this,null);
+		Minimax.updateGameState(this,null);
 		return rv;
 	}
 	
@@ -340,21 +341,28 @@ public class Board {
 	public boolean playerHasPieceAt(boolean player, Point pos){
 		return getPiece(pos).isWhite() == player;
 	}
-	
-	public void removeCheckMoves(ArrayList<Move> moves){
-		Iterator<Move> itr = moves.iterator();
-		while(itr.hasNext()){
-			Move m = itr.next();
-			if(m.putsPlayerInCheck(m.me))
-				itr.remove();
+
+	/**
+	 * Determines all the legal moves a particular player can make on the current board state
+	 * @param me the color of the current player
+	 * @return
+	 * An arrayList containing all the legal moves
+	 */
+	public static ArrayList<Move> getMoves(Board board, boolean me){
+		HashMap<Point, Piece> pieces = board.getPieces(me);
+		ArrayList<Move> moves = new ArrayList<>();
+		board.removeCastleOutOfCheck(moves, me);
+		for(Point point: pieces.keySet().toArray(new Point[pieces.size()])){
+			Piece piece = board.getPiece(point, me);
+			moves.addAll(piece.getMoves(board, point));
 		}
+		return moves;
+	}
+	public void removeCheckMoves(ArrayList<Move> moves){
+		moves.removeIf(m -> m.putsPlayerInCheck(m.me));
 	}
 	public void removeCastleOutOfCheck(ArrayList<Move> moves, boolean color){
-		for(Move m: moves.toArray(new Move[moves.size()])){
-			if(m.castlingMove && isInCheck(color)){
-					moves.remove(m);
-			}
-		}
+		moves.removeIf(m -> m.castlingMove && isInCheck(color));
 	}
 	
 	public void addCastleMoves(ArrayList<Move> moves, boolean color){
@@ -441,7 +449,7 @@ public class Board {
 		System.out.println(this);
 		System.out.printf("%d moves\n", history.size());
 	}
-	public AI getAI(){
+	public Minimax getAI(){
 		if(getIsAIPlayer())
 			return turn ? white : black;
 		System.err.println("Get AI ERROR");

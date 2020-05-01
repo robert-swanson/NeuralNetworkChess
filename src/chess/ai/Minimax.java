@@ -21,12 +21,12 @@ import javafx.beans.property.SimpleDoubleProperty;
 /**
  * Maneges the logic for the chess AI
  */
-public class AI {
+public class Minimax implements Player {
 
-	Board board;
+	public Board board;
 
 	// Identity
-	public Strategy stratagy;
+	public Strategy strategy;
 	final boolean player;
 
 	// State
@@ -55,7 +55,7 @@ public class AI {
 	boolean idDone;
 
 	
-	public AI(Board board, boolean player, SimpleBooleanProperty a, SimpleDoubleProperty p) {
+	public Minimax(Board board, boolean player, SimpleBooleanProperty a, SimpleDoubleProperty p) {
 		try {
 			logger = new PrintWriter("ChessTree.txt");
 		} catch (FileNotFoundException e1) {
@@ -67,7 +67,7 @@ public class AI {
 		allowance.addListener(e -> respondToKill());
 		this.board = board;
 		this.player = player;
-		stratagy = new Strategy();
+		strategy = new Strategy();
 		bannedMoves = new ArrayList<>();
 		progress = p;
 		
@@ -81,10 +81,10 @@ public class AI {
 		}
 	}
 	@SuppressWarnings("unchecked")
-	public void resetKHTT(){
-		transpositionTable = new HashMap[stratagy.getDepth() +1];
-		killerH = new Move[stratagy.getDepth() +1][2];
-		for(int d = 0; d <= stratagy.getTranspositionTableDepth() && d <= stratagy.getDepth(); d++){
+	private void resetKHTT(){
+		transpositionTable = new HashMap[strategy.getDepth() +1];
+		killerH = new Move[strategy.getDepth() +1][2];
+		for(int d = 0; d <= strategy.getTranspositionTableDepth() && d <= strategy.getDepth(); d++){
 			transpositionTable[d] = new HashMap<>();
 		}
 	}
@@ -111,7 +111,7 @@ public class AI {
 		if(board.getIsAIPlayer()){
 			System.out.println("To SLOW MR. AI");
 		}
-		ArrayList<Move> moves = getMoves(player);
+		ArrayList<Move> moves = Board.getMoves(board, player);
 		board.removeCastleOutOfCheck(moves, player);
 		board.removeCheckMoves(moves);
 		return moves.get((int)(Math.random()*moves.size())*0);
@@ -127,10 +127,10 @@ public class AI {
 		progress.set(0.0);						//PROGRESS
 		board.startTimer();
 
-		boolean ab = stratagy.isAlphaBeta();
-		boolean tt = stratagy.isTranspositionTable() & stratagy.getTranspositionTableDepth() >= 0;
-		boolean kh = tt && stratagy.isKillerHeuristic() && stratagy.getKillerHeuristicDepth() >= 0;
-		boolean id = tt && stratagy.isIterativeDeepening() && stratagy.getIterativedeepeningDepth() < stratagy.getDepth();
+		boolean ab = strategy.isAlphaBeta();
+		boolean tt = strategy.isTranspositionTable() & strategy.getTranspositionTableDepth() >= 0;
+		boolean kh = tt && strategy.isKillerHeuristic() && strategy.getKillerHeuristicDepth() >= 0;
+		boolean id = tt && strategy.isIterativeDeepening() && strategy.getIterativedeepeningDepth() < strategy.getDepth();
 		
 		resetKHTT();
 		if(id)
@@ -139,8 +139,8 @@ public class AI {
 		parent = new Node(true);
 		boolean me = board.turn;
 		
-		ArrayList<Move> moves = getMoves(me);	//Moves
-		if(0 <= stratagy.getCheckDepth())
+		ArrayList<Move> moves = Board.getMoves(board, me);	//Moves
+		if(0 <= strategy.getCheckDepth())
 			board.removeCheckMoves(moves);
 
 		if(id)
@@ -149,7 +149,7 @@ public class AI {
 			sortByKH(moves, 0);
 		}
 		
-		if(stratagy.isPreventCycles()){				//Prevent Cycles
+		if(strategy.isPreventCycles()){				//Prevent Cycles
 			updateBanned(4, 2);
 			for(Move m: moves.toArray(new Move[moves.size()]))
 				if(bannedMoves.contains(m.hashCode()) && moves.size() > 1){
@@ -163,7 +163,7 @@ public class AI {
 			return null;	
 		}
 		
-		if(stratagy.getDepth() == 0){				//Random Moves
+		if(strategy.getDepth() == 0){				//Random Moves
 			randomize(moves);
 			thinking = false;
 			return moves.get(0);
@@ -189,7 +189,7 @@ public class AI {
 				}
 			}
 			if(!didUseTT)
-				m.score = minimax(alpha, beta, me, 1, stratagy.getDepth(), child, step);
+				m.score = minimax(alpha, beta, me, 1, strategy.getDepth(), child, step);
 			
 			m.undoMove();
 			best = setBest(best, m, true, true);
@@ -230,14 +230,14 @@ public class AI {
 	 */
 	private double minimax(double alpha, double beta, boolean me, int depth, int maxDepth, Node parent, double whole){		//NODE/PROGRESS
 		boolean maximizer = me == board.turn;
-		boolean aB = stratagy.isAlphaBeta();
-		boolean tT = stratagy.isTranspositionTable() && depth <= stratagy.getTranspositionTableDepth();
-		boolean iD = tT && stratagy.isIterativeDeepening();
-		boolean kH = tT && stratagy.isKillerHeuristic() && depth <= stratagy.getKillerHeuristicDepth();
-		ArrayList<Move> moves = getMoves(board.turn);
+		boolean aB = strategy.isAlphaBeta();
+		boolean tT = strategy.isTranspositionTable() && depth <= strategy.getTranspositionTableDepth();
+		boolean iD = tT && strategy.isIterativeDeepening();
+		boolean kH = tT && strategy.isKillerHeuristic() && depth <= strategy.getKillerHeuristicDepth();
+		ArrayList<Move> moves = Board.getMoves(board, board.turn);
 		
 		
-		if(depth <= stratagy.getCheckDepth())
+		if(depth <= strategy.getCheckDepth())
 			board.removeCheckMoves(moves);
 			
 		double step = whole/moves.size();			//PROGRESS
@@ -275,7 +275,7 @@ public class AI {
 				tranpositionAdd(depth, hash, m.score);
 			m.undoMove();
 
-			if(stratagy.isNodes()){
+			if(strategy.isNodes()){
 				child.score = m.score;									//NODE
 				parent.children.add(child);								//NODE	
 			}
@@ -306,14 +306,14 @@ public class AI {
 	@SuppressWarnings("unchecked")
 	private void iterativeGetBestMove(){
 		totalNodes = (long) 0;
-		for(int d = stratagy.getIterativedeepeningDepth(); d <= stratagy.getDepth(); d++)
+		for(int d = strategy.getIterativedeepeningDepth(); d <= strategy.getDepth(); d++)
 			totalNodes += (int)Math.pow(32, d);
-		transpositionTable = new HashMap[stratagy.getDepth()];
+		transpositionTable = new HashMap[strategy.getDepth()];
 		for(int i = 0; i < transpositionTable.length; i++)
 			transpositionTable[i] = new HashMap<>();
 		best = null;
 		Node parent = new Node(true);
-		for(int d = stratagy.getIterativedeepeningDepth(); d < stratagy.getDepth(); d++){
+		for(int d = strategy.getIterativedeepeningDepth(); d < strategy.getDepth(); d++){
 			double step = Math.pow(32, d)/totalNodes;
 			minimax(-1000, 1000, board.turn, 0, d, parent, step);
 		}
@@ -374,7 +374,7 @@ public class AI {
 				progressScore(b);
 				return b;
 			}
-			else if(stratagy.addRand && Math.random()>.5){
+			else if(strategy.addRand && Math.random()>.5){
 				progressScore(b);
 				return b;
 			}
@@ -505,7 +505,7 @@ public class AI {
 		map.put(hash, value);
 	}
 	private Double transpositionGet(int hash, int depth){
-		for(int d = 1; d < stratagy.getTranspositionTableDepth(); d++){
+		for(int d = 1; d < strategy.getTranspositionTableDepth(); d++){
 			Double n = transpositionTable[d].get(hash);
 			if(n != null){
 				if(depth < d){
@@ -554,23 +554,6 @@ public class AI {
 		}
 	}
 	
-	
-	/**
-	 * Determines all the legal moves a particular player can make on the current board state
-	 * @param me the color of the current player
-	 * @return
-	 * An arrayList containing all the legal moves
-	 */
-	private ArrayList<Move> getMoves(boolean me){
-		HashMap<Point, Piece> pieces = board.getPieces(me);
-		ArrayList<Move> moves = new ArrayList<>();
-		board.removeCastleOutOfCheck(moves, me);
-		for(Point point: pieces.keySet().toArray(new Point[pieces.size()])){
-			Piece piece = board.getPiece(point, me);
-			moves.addAll(piece.getMoves(board, point));
-		}
-		return moves;
-	}
 	
 	private int scorePieceChecking(Piece p){
 		if(p instanceof Queen)
