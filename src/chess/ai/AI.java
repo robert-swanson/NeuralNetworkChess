@@ -214,7 +214,7 @@ public class AI {
 		confidence = best.score;
 		progress.set(0.0);
 		board.endTimer();
-		board.printTimer("Move " + board.history.size());
+		board.printTimer("Move " + board.history.size(), confidence);
 		thinking = false;
 		return best;
 	}

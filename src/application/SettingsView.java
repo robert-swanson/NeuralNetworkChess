@@ -21,6 +21,10 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 
+import java.io.File;
+import java.net.URL;
+import java.util.Arrays;
+
 public class SettingsView{
 	Stage window;
 	VBox layout = new VBox();
@@ -319,13 +323,52 @@ public class SettingsView{
 				iDDepth.setText(getStrat(cPlayer.getValue()).getIterativedeepeningDepth() +"");
 				App.SetUpHBox(iD);
 				App.SetUpTextField(iDDepth);
-				
-				cPlayer.valueProperty().addListener(e -> {
-					editListeners(getStrat(cPlayer.getValue()), d, cd, alphaBeta, random, nodes, cycles, tt, ttd, killerHeuristic, kHDepth, iterativeDeepening, iDDepth);
-				});
-				editListeners(getStrat(cPlayer.getValue()), d, cd, alphaBeta, random, nodes, cycles, tt, ttd, killerHeuristic, kHDepth, iterativeDeepening, iDDepth);
 
-				strategy.getChildren().addAll(depth, cDepth, alphaBeta, random, nodes, cycles, ttt, kH, iD);
+				//MinimaxScoringMethod
+				HBox mSM = new HBox();
+				ObservableList<String> scoringMethods = FXCollections.observableArrayList("Standard", "New");
+				URL modelsURL = getClass().getResource("../resources/models");
+				if(modelsURL != null) {
+					File modelDirectory = new File(modelsURL.toString().substring(5));
+
+					if (modelDirectory != null && modelDirectory.isDirectory()) {
+						System.out.println(Arrays.toString(modelDirectory.list()));
+						for (String filepath: modelDirectory.list()) {
+							scoringMethods.add(filepath.replace(".txt", ""));
+						}
+					}
+				}
+
+				ComboBox<String> cScoring = new ComboBox<>(scoringMethods);
+				cScoring.setValue("Standard");
+
+				Label scoringMethodLabel = new Label("Scoring Method");
+				mSM.getChildren().addAll(scoringMethodLabel, cScoring);
+				App.SetUpHBox(mSM);
+/*
+				ObservableList<String> players = FXCollections.observableArrayList(
+						"White", "Black");
+				ComboBox<String> cPlayer = new ComboBox<>(players);
+				cPlayer.setValue(rules.isComputerPlayer() ? "White" : "Black");
+				Label l = new Label(RuleSet.GameMode.cvc == mode ? "" : "Computer Player");
+				HBox player = new HBox();
+				player.getChildren().addAll(l, cPlayer);
+				App.SetUpHBox(player);
+				cPlayer.valueProperty().addListener(e -> {
+																 rules.setComputerPlayer(cPlayer.getValue().equals("White"));
+																 strategy.getChildren().clear();
+																 strategy.getChildren().add(player);
+																 initAISpecifics(strategy, cPlayer);
+																 });
+				strategy.getChildren().add(player);
+				initAISpecifics(strategy, cPlayer);
+*/
+				cPlayer.valueProperty().addListener(e -> {
+					editListeners(getStrat(cPlayer.getValue()), d, cd, alphaBeta, random, nodes, cycles, tt, ttd, killerHeuristic, kHDepth, iterativeDeepening, iDDepth, cScoring);
+				});
+				editListeners(getStrat(cPlayer.getValue()), d, cd, alphaBeta, random, nodes, cycles, tt, ttd, killerHeuristic, kHDepth, iterativeDeepening, iDDepth, cScoring);
+
+				strategy.getChildren().addAll(depth, cDepth, alphaBeta, random, nodes, cycles, ttt, kH, iD, mSM);
 	}
 
 	
@@ -341,7 +384,8 @@ public class SettingsView{
 							   CheckBox killerHeuristic,
 							   TextField kHDepth,
 							   CheckBox IterativeDeepening,
-							   TextField iDDepth){
+							   TextField iDDepth,
+							   ComboBox scoreMethod){
 
 		depth.textProperty().addListener(e -> {
 			if(depth.getText().matches("\\d+")){

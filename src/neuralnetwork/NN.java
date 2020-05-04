@@ -15,6 +15,13 @@ import java.util.Scanner;
  * @version 1.1
  */
 public class NN {
+	// Chess Options
+	public enum LabelingMethod {GameOutcome, StandardScore};
+	LabelingMethod labelingMethod;
+	double learningRate;
+	int miniumDepthOfData;
+	boolean learnFromOwnData;
+
 	// Network Attributes
 	private double[][][] weights;
 	private double[][] biases;
@@ -39,7 +46,7 @@ public class NN {
 	 * Creates a random new neural network based off of the given structure
 	 * @param structure in integer array with size at least two (for input and output layers) defining the number of layers in the network, and each element defining the size of that layer
 	 */
-	public NN(int[] structure) {
+	public NN(int[] structure, LabelingMethod labelingMethod, double learningRate, int miniumDepthOfData, boolean learnFromOwnData) {
 		this.structure = structure;
 		if(structure.length <= 1) {
 			System.err.println("NN Structure must be at least 2 layers");
@@ -57,6 +64,11 @@ public class NN {
 			activations[layer] = new double[structure[layer+1]];
 		}
 		trainingCursor = 0;
+
+		this.labelingMethod = labelingMethod;
+		this.learningRate = learningRate;
+		this.miniumDepthOfData = miniumDepthOfData;
+		this.learnFromOwnData = learnFromOwnData;
 	}
 
 	/**
@@ -306,9 +318,18 @@ public class NN {
 		PrintWriter print;
 		try {
 			print = new PrintWriter(file);
-			print.println(trainingCursor);
+			print.printf("%20s %d\n", "Training Cursor:", trainingCursor);
+
+			print.printf("%20s ", "Structure:", trainingCursor);
 			for(int i:structure) print.print(i+ " ");
 			print.println();
+
+
+			print.printf("%20s %s", "Labeling Method:", labelingMethod.toString());
+			print.printf("%20s %f", "Learning Rate:", learningRate);
+			print.printf("%20s %d", "Minimum Depth of Data:", miniumDepthOfData);
+			print.printf("%20s %s", "Learn From Own Data:", learnFromOwnData ? "yes" : "no");
+
 			for(int x = 0; x < weights.length; x++)
 				for(int y = 0; y < weights[x].length; y++) {
 					for(int z = 0; z < weights[x][y].length; z++)
@@ -329,11 +350,19 @@ public class NN {
 	// Loads a file and sets the network parameters accordingly
 	private void load(String file) {
 		try {
-			Scanner in = new Scanner(new File(file));	
-			trainingCursor = Integer.parseInt(in.nextLine());
-			structure = sti(in.nextLine().split(" "));
+			Scanner in = new Scanner(new File(file));
+
+			trainingCursor = Integer.parseInt(in.nextLine().substring(20));
+
+			structure = sti(in.nextLine().substring(20).split(" "));
 			weights = new double[structure.length-1][][];
 			activations = new double[structure.length-1][];
+
+			labelingMethod = LabelingMethod.valueOf(in.nextLine().substring(20));
+			learningRate = Double.parseDouble(in.nextLine().substring(20));
+			miniumDepthOfData = Integer.parseInt(in.nextLine().substring(20));
+			learnFromOwnData = in.nextLine().substring(20).equalsIgnoreCase("yes");
+
 			for(int l = 0; l < structure.length-1; l++) {
 				weights[l] = new double[structure[l+1]][];
 				activations[l] = new double[structure[l+1]];

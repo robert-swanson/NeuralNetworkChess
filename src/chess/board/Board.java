@@ -464,8 +464,8 @@ public class Board {
 		avTotal += (System.nanoTime()-startTime);
 		avCount++;
 	}
-	public void printTimer(String name){
-		System.out.printf("Task: %s, NanoSecs: %.2e\n", name, (double)(avTotal/avCount));
+	public void printTimer(String name, double score){
+		System.out.printf("Task: %s, NanoSecs: %.2e, Board Score: %.2f\n", name, (double)(avTotal/avCount), score);
 	}
 	public void updateIcon(){
 		

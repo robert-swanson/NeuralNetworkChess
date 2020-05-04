@@ -160,7 +160,7 @@ public class App extends Application {
 		pBar.progressProperty().bind(progress);
 
 		//Stop Button
-		stopStart = new ImageView(getClass().getResource("../resources/stop.png").toString());
+		stopStart = new ImageView(getClass().getResource("../resources/images/stop.png").toString());
 		stopStart.setPreserveRatio(true);
 		stopStart.setVisible(true);
 		stopStart.setOnMouseClicked(e-> {
@@ -403,7 +403,7 @@ public class App extends Application {
 				initiateBoard();
 			});
 
-			ImageView sButton = new ImageView(getClass().getResource("../resources/settings.png").toString());
+			ImageView sButton = new ImageView(getClass().getResource("../resources/images/settings.png").toString());
 			sButton.setPreserveRatio(true);
 			sButton.setVisible(true);
 			sButton.setOnMouseClicked(e-> {
@@ -699,7 +699,7 @@ public class App extends Application {
 	}
 
 	private ImageView getImageView(String s, boolean color) {
-		String name = (color ? "White_" : "Black_") + s + ".png";
+		String name =  "../resources/images/" + ( color ? "White_" : "Black_") + s + ".png";
 		ImageView icon = new ImageView(getClass().getResource(name).toString());
 		icon.setPreserveRatio(true);
 		icon.setFitHeight(17);
@@ -707,7 +707,7 @@ public class App extends Application {
 	}
 
 	private ImageView initPiece(Point p, boolean player, Piece piece){
-		String color = "../resources/" + (player ? "White_" : "Black_") + piece.toString() + ".png";
+		String color = "../resources/images/" + (player ? "White_" : "Black_") + piece.toString() + ".png";
 		ImageView icon = new ImageView(getClass().getResource(color).toString());
 		icon.setPreserveRatio(true);
 		icon.setVisible(false);

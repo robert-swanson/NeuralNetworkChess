@@ -1,5 +1,7 @@
 package chess.ai;
 
+import neuralnetwork.NN;
+
 public class Strategy {
     private int depth;
     private boolean alphaBeta;
@@ -10,6 +12,9 @@ public class Strategy {
     private boolean iterativeDeepening;
     private int iterativedeepeningDepth;
     private int checkDepth;
+
+    private String scoringNetworkFilePath;
+    public NN scoringNetwork;
 
     private boolean nodes;
     private boolean preventCycles;
@@ -28,6 +33,8 @@ public class Strategy {
         iterativedeepeningDepth = 2;
         addRand = true;
         checkDepth = 1;
+        scoringNetworkFilePath = "";
+        scoringNetwork = null;
 
         nodes = true;
         preventCycles = true;
@@ -152,5 +159,13 @@ public class Strategy {
 
     public void setAddRand(boolean addRand) {
         this.addRand = addRand;
+    }
+
+    public String getScoringNetworkFilePath() {
+        return scoringNetworkFilePath;
+    }
+
+    public void setScoringNetworkFilePath(String scoringNetworkFilePath) {
+        this.scoringNetworkFilePath = scoringNetworkFilePath;
     }
 }
