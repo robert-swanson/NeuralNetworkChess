@@ -9,21 +9,19 @@ import javafx.collections.ObservableList;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.control.CheckBox;
-import javafx.scene.control.ComboBox;
-import javafx.scene.control.Label;
-import javafx.scene.control.Separator;
-import javafx.scene.control.TextField;
+import javafx.scene.control.*;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import neuralnetwork.NN;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.net.URL;
 import java.util.Arrays;
+import java.util.Optional;
 
 public class SettingsView{
 	Stage window;
@@ -326,7 +324,7 @@ public class SettingsView{
 
 				//MinimaxScoringMethod
 				HBox mSM = new HBox();
-				ObservableList<String> scoringMethods = FXCollections.observableArrayList("Standard", "New");
+				ObservableList<String> scoringMethods = FXCollections.observableArrayList("Standard", "Add New Model");
 				URL modelsURL = getClass().getResource("../resources/models");
 				if(modelsURL != null) {
 					File modelDirectory = new File(modelsURL.toString().substring(5));
@@ -385,7 +383,7 @@ public class SettingsView{
 							   TextField kHDepth,
 							   CheckBox IterativeDeepening,
 							   TextField iDDepth,
-							   ComboBox scoreMethod){
+							   ComboBox<String> scoreMethod){
 
 		depth.textProperty().addListener(e -> {
 			if(depth.getText().matches("\\d+")){
@@ -493,6 +491,50 @@ public class SettingsView{
 			}
 			else if(iDDepth.getText().length() > 0)
 				iDDepth.setText(""+ strat.getIterativedeepeningDepth());
+		});
+
+		scoreMethod.valueProperty().addListener(e -> {
+			String filename = scoreMethod.getValue().toString();
+			if(filename.equals("Add New Model")){
+				TextInputDialog dialog = new TextInputDialog("testmodel 768 1000 1000 1");
+				dialog.setTitle("Add New Model");
+				dialog.setHeaderText("Define the model name and network structure: \"[model name] 768 [hidden layers] 1\"");
+
+				Optional<String> modelParameters = dialog.showAndWait();
+				modelParameters.ifPresent(param -> {
+					String[] params = param.split(" ");
+					if (!param.matches(String.format("\\w+ %d( \\d+)* %d", NN.BOARD_LAYER_SIZE, NN.OUTPUT_LAYER_SIZE))){
+						Alert badInput = new Alert(Alert.AlertType.INFORMATION);
+						badInput.setAlertType(Alert.AlertType.ERROR);
+						badInput.setHeaderText("Invalid Input");
+						badInput.setContentText(String.format("No new model was created, make sure you include the filename, set the input layer to %d and the output layer to %d",NN.BOARD_LAYER_SIZE, NN.OUTPUT_LAYER_SIZE));
+						badInput.show();
+					} else {
+						int[] structure = new int[params.length-1];
+						String modelName = params[0] + ".txt";
+						for (int i = 1; i < params.length; i++) {
+							structure[i-1] = Integer.parseInt(params[i]);
+						}
+						strat.setScoringNetworkFilePath(modelName);
+						strat.scoringNetwork = new NN(structure, NN.LabelingMethod.GameOutcome, 0.025, 3, true);
+						strat.scoringNetwork.save(strat.getScoringNetworkFilePath());
+						scoreMethod.getItems().add(params[0]);
+						scoreMethod.setValue(params[0]);
+					}
+				});
+
+			}else{
+				if (!filename.endsWith(".txt")) {
+					filename += ".txt";
+				}
+				try{
+					strat.scoringNetwork = new NN(filename);
+					strat.setScoringNetworkFilePath(scoreMethod.getValue().toString());
+				} catch (Exception error) {
+					System.err.println("Failed to create model: " + error.getMessage());
+					scoreMethod.setValue("Standard");
+				}
+			}
 		});
 
 	}

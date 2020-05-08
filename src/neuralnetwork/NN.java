@@ -1,8 +1,11 @@
 package neuralnetwork;
 
+import javafx.scene.image.ImageView;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.PrintWriter;
+import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
@@ -39,6 +42,10 @@ public class NN {
 	// Training
 	private int trainingCursor;
 	private double bestAccuracy;
+
+	// Constants
+	public static final int BOARD_LAYER_SIZE = 768;
+	public static final int OUTPUT_LAYER_SIZE = 1;
 
 	//  ================================================= Constructors =============================================
 
@@ -317,18 +324,21 @@ public class NN {
 	public void save(String file) {
 		PrintWriter print;
 		try {
-			print = new PrintWriter(file);
-			print.printf("%20s %d\n", "Training Cursor:", trainingCursor);
+			URL modelsURL = getClass().getResource("../resources/models");
+			File modelDirectory = new File(modelsURL.getPath());
+			File newFile = new File(modelDirectory.getPath()+"/"+file);
+			print = new PrintWriter(newFile);
+			print.printf("%23s %d\n", "Training Cursor:", trainingCursor);
 
-			print.printf("%20s ", "Structure:", trainingCursor);
+			print.printf("%23s ", "Structure:", trainingCursor);
 			for(int i:structure) print.print(i+ " ");
 			print.println();
 
 
-			print.printf("%20s %s", "Labeling Method:", labelingMethod.toString());
-			print.printf("%20s %f", "Learning Rate:", learningRate);
-			print.printf("%20s %d", "Minimum Depth of Data:", miniumDepthOfData);
-			print.printf("%20s %s", "Learn From Own Data:", learnFromOwnData ? "yes" : "no");
+			print.printf("%23s %s\n", "Labeling Method:", labelingMethod.toString());
+			print.printf("%23s %f\n", "Learning Rate:", learningRate);
+			print.printf("%23s %d\n", "Minimum Depth of Data:", miniumDepthOfData);
+			print.printf("%23s %s\n", "Learn From Own Data:", learnFromOwnData ? "yes" : "no");
 
 			for(int x = 0; x < weights.length; x++)
 				for(int y = 0; y < weights[x].length; y++) {
@@ -343,25 +353,27 @@ public class NN {
 			}
 			print.flush();
 		} catch (FileNotFoundException e) {
-			System.err.println("Could not save");
+			System.err.println("Could not save: "+e.getMessage());
 		}
 	}
 
 	// Loads a file and sets the network parameters accordingly
 	private void load(String file) {
 		try {
-			Scanner in = new Scanner(new File(file));
 
-			trainingCursor = Integer.parseInt(in.nextLine().substring(20));
+			URL path = getClass().getResource("../resources/models/"+file);
+			Scanner in = new Scanner(new File(path.getPath()));
 
-			structure = sti(in.nextLine().substring(20).split(" "));
+			trainingCursor = Integer.parseInt(in.nextLine().substring(24));
+
+			structure = sti(in.nextLine().substring(24).split(" "));
 			weights = new double[structure.length-1][][];
 			activations = new double[structure.length-1][];
 
-			labelingMethod = LabelingMethod.valueOf(in.nextLine().substring(20));
-			learningRate = Double.parseDouble(in.nextLine().substring(20));
-			miniumDepthOfData = Integer.parseInt(in.nextLine().substring(20));
-			learnFromOwnData = in.nextLine().substring(20).equalsIgnoreCase("yes");
+			labelingMethod = LabelingMethod.valueOf(in.nextLine().substring(24));
+			learningRate = Double.parseDouble(in.nextLine().substring(24));
+			miniumDepthOfData = Integer.parseInt(in.nextLine().substring(24));
+			learnFromOwnData = in.nextLine().substring(24).equalsIgnoreCase("yes");
 
 			for(int l = 0; l < structure.length-1; l++) {
 				weights[l] = new double[structure[l+1]][];
@@ -375,7 +387,7 @@ public class NN {
 				biases[l] = std(in.nextLine().split(" "));
 			in.close();
 		} catch (FileNotFoundException e) {
-			System.err.println("Saved File Not Found");
+			System.err.printf("Saved File Not Found: %s\n", e.getMessage());
 		}
 
 	}

@@ -50,6 +50,7 @@ public class Board {
 	SimpleDoubleProperty whiteTime;
 	SimpleDoubleProperty blackTime;
 
+
 	/**
 	 * Initializes the pieces on the board according to what player is on the top
  	 * @param allowance
