@@ -1,5 +1,7 @@
 package neuralnetwork;
 
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.scene.image.ImageView;
 
 import java.io.File;
@@ -7,10 +9,7 @@ import java.io.FileNotFoundException;
 import java.io.PrintWriter;
 import java.net.URL;
 import java.text.SimpleDateFormat;
-import java.util.Calendar;
-import java.util.GregorianCalendar;
-import java.util.LinkedList;
-import java.util.Scanner;
+import java.util.*;
 
 /**
  * Defines a neural network that supports custom layer structure, classification through forward propagation, and training through back propagation
@@ -20,15 +19,19 @@ import java.util.Scanner;
 public class NN {
 	// Chess Options
 	public enum LabelingMethod {GameOutcome, StandardScore};
-	LabelingMethod labelingMethod;
-	double learningRate;
-	int miniumDepthOfData;
-	boolean learnFromOwnData;
+	private LabelingMethod labelingMethod;
+
+
+	private double learningRate;
+	private int miniumDepthOfData;
+
+
+	private boolean learnFromOwnData;
 
 	// Network Attributes
 	private double[][][] weights;
 	private double[][] biases;
-	private int[] structure;
+	private int[] structure = new int[]{};
 
 	// Network State
 	private double[] input;
@@ -716,4 +719,68 @@ public class NN {
 		}
 		return rv;
 	}
+
+	public LabelingMethod getLabelingMethod() {
+		return labelingMethod;
+	}
+
+	public double getLearningRate() {
+		return learningRate;
+	}
+
+	public int getMiniumDepthOfData() {
+		return miniumDepthOfData;
+	}
+
+	public boolean isLearnFromOwnData() {
+		return learnFromOwnData;
+	}
+
+	public void setLabelingMethod(LabelingMethod labelingMethod) {
+		this.labelingMethod = labelingMethod;
+	}
+
+	public void setLearningRate(double learningRate) {
+		this.learningRate = learningRate;
+	}
+
+	public void setMiniumDepthOfData(int miniumDepthOfData) {
+		this.miniumDepthOfData = miniumDepthOfData;
+	}
+
+	public void setLearnFromOwnData(boolean learnFromOwnData) {
+		this.learnFromOwnData = learnFromOwnData;
+	}
+
+	// Finds models and returns ObservableList
+	public static ObservableList getModelList(){
+
+		ObservableList<String> models = FXCollections.observableArrayList();
+		URL modelsURL = NN.class.getResource("../resources/models");
+		if(modelsURL != null) {
+			File modelDirectory = new File(modelsURL.toString().substring(5));
+
+			if (modelDirectory != null && modelDirectory.isDirectory()) {
+				System.out.println(Arrays.toString(modelDirectory.list()));
+				for (String filepath: modelDirectory.list()) {
+					if(filepath.endsWith(".txt")){
+						models.add(filepath.replace(".txt", ""));
+					}
+				}
+			}
+		}
+		return models;
+	}
+
+	// Returns description of structure
+	public String getStructure(){
+		if(structure.length == 0) return "--";
+
+		String rv = String.format("%d", structure[0]);
+		for(int i = 1; i < structure.length; i++){
+			rv += String.format(" x %d",structure[i]);
+		}
+		return rv;
+	}
+
 }

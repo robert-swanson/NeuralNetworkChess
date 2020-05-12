@@ -117,6 +117,8 @@ public class App extends Application {
 	double[] draggedCoords = new double[2];
 	double[] mouseCoords = new double[2];
 
+	TrainingView trainingView;
+
 	public static void main(String[] args){
 		launch(args);
 	}
@@ -204,6 +206,7 @@ public class App extends Application {
 		//Initialize
 
 		initButtonBar();
+		trainingView = new TrainingView();
 
 		//Stack Pane
 		layout = new StackPane();
@@ -484,6 +487,11 @@ public class App extends Application {
 			});
 			sButton.fitHeightProperty().set(20);;
 
+			Button training = new Button("Training");
+			training.setOnAction(e -> {
+				trainingView.display();
+			});
+
 
 			buttons.getChildren().addAll(sButton, reset, hist, edit);
 			if(board.rules.isUndo())
@@ -496,7 +504,7 @@ public class App extends Application {
 			}
 			if(board.rules.isDebug()){
 				Separator sep = new Separator(Orientation.VERTICAL);
-				buttons.getChildren().addAll(sep, print, tree, sync, test);
+				buttons.getChildren().addAll(sep, print, tree, sync, test, training);
 			}
 			//		this.buttons.getChildren().clear();
 			//		this.buttons.getChildren().addAll(buttons.getChildren());
@@ -1307,12 +1315,20 @@ public class App extends Application {
 	public String toString() {
 		return board.toString();
 	}
-	public static void SetUpVBox(VBox layout){
+	public static void SetUpVBoxCentered(VBox layout){
 		layout.setAlignment(Pos.CENTER);
 		layout.setSpacing(10);
 	}
-	public static void SetUpHBox(HBox layout){
+	public static void SetUpHBoxCentered(HBox layout){
 		layout.setAlignment(Pos.CENTER);
+		layout.setSpacing(10);
+	}
+	public static void SetUpVBoxLeft(VBox layout){
+		layout.setAlignment(Pos.CENTER_LEFT);
+		layout.setSpacing(10);
+	}
+	public static void SetUpHBoxLeft(HBox layout){
+		layout.setAlignment(Pos.CENTER_LEFT);
 		layout.setSpacing(10);
 	}
 	public static void SetUpTextField(TextField text){

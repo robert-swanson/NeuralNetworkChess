@@ -83,7 +83,7 @@ public class RuleSet{
         timeLimit.seconds = 0;
         computerPlayer = false;
         undo = true;
-        debug = false;
+        debug = true;
     }
 
     @Override

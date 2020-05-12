@@ -17,10 +17,6 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import neuralnetwork.NN;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.net.URL;
-import java.util.Arrays;
 import java.util.Optional;
 
 public class SettingsView{
@@ -38,7 +34,7 @@ public class SettingsView{
 		rules = board.rules;
 		blackStrategy = board.black.stratagy;
 		whiteStrategy = board.white.stratagy;
-		App.SetUpVBox(layout);
+		App.SetUpVBoxCentered(layout);
 	}
 
 	public boolean display(){
@@ -139,7 +135,7 @@ public class SettingsView{
 		ComboBox<String> tp = new ComboBox<>(players);
 		tp.setValue(rules.isTopPlayer() ? "White" : "Black");
 		topPlayer.getChildren().addAll(tpl,tp);
-		App.SetUpHBox(topPlayer);
+		App.SetUpHBoxCentered(topPlayer);
 		tp.valueProperty().addListener(e -> {
 			mustRestartOnClose = true;
 			if(tp.getValue().equals("Black"))
@@ -206,8 +202,8 @@ public class SettingsView{
 		tlM.setDisable(rules.getTimeLimit() == RuleSet.TimeLimit.off);
 		tlS.setMaxWidth(40);
 		tlM.setMaxWidth(30);
-		App.SetUpHBox(timeLimit);
-		App.SetUpHBox(topPlayer);
+		App.SetUpHBoxCentered(timeLimit);
+		App.SetUpHBoxCentered(topPlayer);
 		
 		Separator sep = new  Separator(Orientation.HORIZONTAL);
 		
@@ -225,7 +221,7 @@ public class SettingsView{
 
 	private void initStratagyView(RuleSet.GameMode mode){
 		strategy = new VBox();
-		App.SetUpVBox(strategy);
+		App.SetUpVBoxCentered(strategy);
 
 		if(mode == RuleSet.GameMode.pvp)
 			return;
@@ -238,7 +234,7 @@ public class SettingsView{
 		Label l = new Label(RuleSet.GameMode.cvc == mode ? "" : "Computer Player");
 		HBox player = new HBox();
 		player.getChildren().addAll(l, cPlayer);
-		App.SetUpHBox(player);
+		App.SetUpHBoxCentered(player);
 		cPlayer.valueProperty().addListener(e -> {
 			rules.setComputerPlayer(cPlayer.getValue().equals("White"));
 			strategy.getChildren().clear();
@@ -256,7 +252,7 @@ public class SettingsView{
 				TextField d = new TextField();
 				d.setText(""+getStrat(cPlayer.getValue()).getDepth());
 				depth.getChildren().addAll(dl,d);
-				App.SetUpHBox(depth);
+				App.SetUpHBoxCentered(depth);
 				App.SetUpTextField(d);
 				
 				//Check Depth
@@ -265,7 +261,7 @@ public class SettingsView{
 				TextField cd = new TextField();
 				cd.setText(""+getStrat(cPlayer.getValue()).getCheckDepth());
 				cDepth.getChildren().addAll(cdl,cd);
-				App.SetUpHBox(cDepth);
+				App.SetUpHBoxCentered(cDepth);
 				App.SetUpTextField(cd);
 				
 
@@ -294,7 +290,7 @@ public class SettingsView{
 				ttt.getChildren().addAll(tt,ttd);
 				tt.setSelected(getStrat(cPlayer.getValue()).isTranspositionTable());
 				ttd.setText(getStrat(cPlayer.getValue()).getTranspositionTableDepth() +"");
-				App.SetUpHBox(ttt);
+				App.SetUpHBoxCentered(ttt);
 				App.SetUpTextField(ttd);
 				
 
@@ -307,7 +303,7 @@ public class SettingsView{
 				kH.getChildren().addAll(killerHeuristic,kHDepth);
 				killerHeuristic.setSelected(getStrat(cPlayer.getValue()).isKillerHeuristic());
 				kHDepth.setText(getStrat(cPlayer.getValue()).getKillerHeuristicDepth() +"");
-				App.SetUpHBox(kH);
+				App.SetUpHBoxCentered(kH);
 				App.SetUpTextField(kHDepth);
 
 				//Iterative Deepening
@@ -319,30 +315,20 @@ public class SettingsView{
 				iD.getChildren().addAll(iterativeDeepening, iDDepth);
 				iterativeDeepening.setSelected(getStrat(cPlayer.getValue()).isIterativeDeepening());
 				iDDepth.setText(getStrat(cPlayer.getValue()).getIterativedeepeningDepth() +"");
-				App.SetUpHBox(iD);
+				App.SetUpHBoxCentered(iD);
 				App.SetUpTextField(iDDepth);
 
 				//MinimaxScoringMethod
 				HBox mSM = new HBox();
-				ObservableList<String> scoringMethods = FXCollections.observableArrayList("Standard", "Add New Model");
-				URL modelsURL = getClass().getResource("../resources/models");
-				if(modelsURL != null) {
-					File modelDirectory = new File(modelsURL.toString().substring(5));
-
-					if (modelDirectory != null && modelDirectory.isDirectory()) {
-						System.out.println(Arrays.toString(modelDirectory.list()));
-						for (String filepath: modelDirectory.list()) {
-							scoringMethods.add(filepath.replace(".txt", ""));
-						}
-					}
-				}
+				ObservableList<String> scoringMethods = NN.getModelList();
+				scoringMethods.addAll("Standard", "Add New Model");
 
 				ComboBox<String> cScoring = new ComboBox<>(scoringMethods);
 				cScoring.setValue("Standard");
 
 				Label scoringMethodLabel = new Label("Scoring Method");
 				mSM.getChildren().addAll(scoringMethodLabel, cScoring);
-				App.SetUpHBox(mSM);
+				App.SetUpHBoxCentered(mSM);
 /*
 				ObservableList<String> players = FXCollections.observableArrayList(
 						"White", "Black");
