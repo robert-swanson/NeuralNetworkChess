@@ -1,8 +1,8 @@
 package chess.board;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Stack;
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.util.*;
 
 import chess.ai.AI;
 import chess.ai.Strategy;
@@ -15,6 +15,7 @@ import chess.pieces.Queen;
 import chess.pieces.Rook;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
+import neuralnetwork.NN;
 
 /**
  * Manages the black and white pieces
@@ -50,6 +51,7 @@ public class Board {
 	SimpleDoubleProperty whiteTime;
 	SimpleDoubleProperty blackTime;
 
+	LinkedList<BoardEvaluation> evaluationBuffer;
 
 	/**
 	 * Initializes the pieces on the board according to what player is on the top
@@ -57,6 +59,7 @@ public class Board {
 	 * @param p
 	 */
 	public Board(SimpleBooleanProperty allowance, SimpleDoubleProperty p) {
+		evaluationBuffer = new LinkedList<>();
 		black = new AI(this, false, allowance, p);
 		white = new AI(this, true, allowance, p);
 		rules = new RuleSet();
@@ -65,6 +68,7 @@ public class Board {
 		winning = false;
 		whiteTime = new SimpleDoubleProperty(rules.timeLimit.toSeconds());
 		blackTime = new SimpleDoubleProperty(rules.timeLimit.toSeconds());
+
 	}
 	
 	public Board(SimpleBooleanProperty allowance, String importString, SimpleDoubleProperty p){
@@ -101,6 +105,9 @@ public class Board {
 		//Stratagy
 		white.stratagy = new Strategy(input[5]);
 		black.stratagy = new Strategy(input[6]);
+
+		// Board Evaluation
+		evaluationBuffer = new LinkedList<>();
 	}
 	
 	public void setUpBoard(){
@@ -113,6 +120,7 @@ public class Board {
 		turn = true;
 
 		history = new Stack<>();
+		evaluationBuffer.clear();
 
 		//Pawns
 		Point p;
@@ -536,4 +544,64 @@ public class Board {
 			hash ^= 100;
 		return hash;
 	}
+
+	public void addEvaluationToBuffer(double minimaxScore, int depthOfScore, String player) {
+		evaluationBuffer.add(new BoardEvaluation(getCondensedBoardInputLayer(), minimaxScore, depthOfScore, player));
+	}
+
+	public void flushEvaluationBuffer(BufferedWriter out, int gameOutcome) {
+		evaluationBuffer.forEach(e -> {
+			try {
+				out.write(e.getSaveString(gameOutcome));
+			} catch (IOException ioException) {
+				ioException.printStackTrace();
+			}
+		});
+		try {
+			out.flush();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		evaluationBuffer.clear();
+	}
+
+	// returns 12 longs in array, one for each piece type, with a bit set for for every place in the board containing that piece
+	private long[] getCondensedBoardInputLayer(){
+		long[] rv = new long[12]; // w_pawns, w_rook, w_knight, w_bishop, w_queen, w_king, b_pawns, b_rook, b_knight, b_bishop, b_queen, b_king;
+
+		for (int i = 0; i < 64; i++) {
+			int x = i%8, y = i/8;
+			Piece piece = getPiece(new Point(x, y));
+			if (piece != null) {
+				rv[getPieceOffsetForLayer(piece)] |= 1 << (long)(i);
+			}
+		}
+		return rv;
+	}
+
+
+	// Takes in index from 0-63 get the piece at that place in the board and returns its hash value for NN purposes
+	private int getPieceOffsetForLayer(Piece piece) {
+		int offset = piece.isWhite() ? 0 : 6;
+
+		if (piece instanceof Pawn) {
+		}else if(piece instanceof Rook) {
+			offset += 1;
+		} else if (piece instanceof Knight) {
+			offset += 2;
+		} else if (piece instanceof Bishop) {
+			offset += 3;
+		} else if (piece instanceof Queen) {
+			offset += 4;
+		} else if (piece instanceof King) {
+			offset += 5;
+		} else {
+			System.err.println("Unknown Piece: " + piece.getClass().toString());
+		}
+		return offset;
+	}
+
+
+
 }

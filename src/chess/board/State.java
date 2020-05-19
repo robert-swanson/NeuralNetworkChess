@@ -18,5 +18,17 @@ public enum State{
         }
     }
 
+    public int getGameOutcome() {
+        switch (this) {
+            case WHITEWON:
+                return 1;
+            case BLACKWON:
+                return -1;
+            default:
+                return 0;
+
+        }
+    }
+
 }
 

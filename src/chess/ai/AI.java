@@ -190,6 +190,8 @@ public class AI {
 			}
 			if(!didUseTT)
 				m.score = minimax(alpha, beta, me, 1, stratagy.getDepth(), child, step);
+
+			board.addEvaluationToBuffer((me ? m.score : -m.score), stratagy.getDepth()-1, stratagy.scoringNetwork != null ? "NN" : "Minimax");
 			
 			m.undoMove();
 			best = setBest(best, m, true, true);
@@ -207,6 +209,7 @@ public class AI {
 				if(alpha > beta){
 					progress.set(progress.get() + (moves.size()-index) * step); //PROGRESS
 					thinking = false;
+					board.addEvaluationToBuffer((me ? best.score : -best.score), stratagy.getDepth(), stratagy.scoringNetwork != null ? "NN" : "Minimax");
 					return best;
 				}
 			}
@@ -216,6 +219,7 @@ public class AI {
 		board.endTimer();
 		board.printTimer("Move " + board.history.size(), confidence);
 		thinking = false;
+		board.addEvaluationToBuffer((me ? best.score : -best.score), stratagy.getDepth(), stratagy.scoringNetwork != null ? "NN" : "Minimax");
 		return best;
 	}
 	
@@ -273,6 +277,9 @@ public class AI {
 			}
 			if(tT && !didUseTT)
 				tranpositionAdd(depth, hash, m.score);
+
+//			board.addEvaluationToBuffer((me ? m.score : -m.score), stratagy.getDepth()-depth, stratagy.scoringNetwork != null ? "NN" : "Minimax");
+
 			m.undoMove();
 
 			if(stratagy.isNodes()){

@@ -13,6 +13,10 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import neuralnetwork.NN;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.util.Scanner;
+
 public class TrainingView {
     Stage window;
     BorderPane layout;
@@ -51,6 +55,7 @@ public class TrainingView {
     Button save;
 
     NN model;
+    Scanner data;
 
     public void display(){
         // Progress Bar
@@ -159,6 +164,12 @@ public class TrainingView {
         window.setScene(s);
         window.centerOnScreen();
         window.showAndWait();
+
+        try {
+            data = new Scanner(new File(getClass().getResource("../resources/").getPath()+App.DataSet));
+        } catch (FileNotFoundException e) {
+            System.err.println("Could Not Load Data set: resources/"+App.DataSet);
+        }
     }
 
     private void setModelSelectionListener(){

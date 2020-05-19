@@ -10,8 +10,8 @@ import chess.board.State;
 import chess.pieces.*;
 
 import java.awt.Desktop;
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Stack;
@@ -25,6 +25,7 @@ import javafx.animation.SequentialTransition;
 import javafx.animation.Timeline;
 import javafx.animation.Transition;
 import javafx.application.Application;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
@@ -67,7 +68,9 @@ public class App extends Application {
 
 
 	//Constants
-	final double Animation_Duration = .2; 
+	final double Animation_Duration = .01;
+	final static String DataSet = "depth_2.csv";
+	final static String CSVHeader = "Player, Outcome, Minimax Score, Depth, White_Pawn, White_Rook, White_Knight, White_Bishop, White_Queen, White_King, Black_Pawn, Black_Rook, Black_Knight, Black_Bishop, Black_Queen, Black_King\n";
 	final int stop = -1;
 
 	//Gameplay
@@ -86,6 +89,7 @@ public class App extends Application {
 	ArrayList<Integer> histHash = new ArrayList<>();
 
 	Tester tester;
+	CheckBox infinitePlay;
 
 	//UI
 	BorderPane masterLayout;
@@ -118,6 +122,8 @@ public class App extends Application {
 	double[] mouseCoords = new double[2];
 
 	TrainingView trainingView;
+	BufferedWriter evaluationWriter;
+
 
 	public static void main(String[] args){
 		launch(args);
@@ -242,13 +248,25 @@ public class App extends Application {
 		});
 
 
-
 		//Show the Window
 		window.show();
 
 		resize();
 		setupAnimation(Animation_Duration,0);
 		window.centerOnScreen();
+
+		// Open the evaluation file
+//		String path = getClass().getResource("../resources/evaluationData.txt").getPath();
+//		File resourceDir = new File(getClass().getResource("../resources/").getPath());
+//		if (getClass().getResource("../resources/evaluationData.txt"))
+//		File newFile = new File(resourceDir.getPath()+"/evaluationData.txt");
+//		print = new PrintWriter(newFile);
+        File file = new File(getClass().getResource("../resources/").getPath()+DataSet);
+        boolean newFile = file.createNewFile();
+		evaluationWriter = new BufferedWriter(new FileWriter(file.getPath(), true));
+		if (newFile){
+			evaluationWriter.write(CSVHeader);
+		}
 	}
 
 	private void showBoard(){
@@ -492,6 +510,7 @@ public class App extends Application {
 				trainingView.display();
 			});
 
+			infinitePlay = new CheckBox("Infinite Play");
 
 			buttons.getChildren().addAll(sButton, reset, hist, edit);
 			if(board.rules.isUndo())
@@ -505,6 +524,9 @@ public class App extends Application {
 			if(board.rules.isDebug()){
 				Separator sep = new Separator(Orientation.VERTICAL);
 				buttons.getChildren().addAll(sep, print, tree, sync, test, training);
+				if(board.rules.getMode() == GameMode.cvc) {
+					buttons.getChildren().add(infinitePlay);
+				}
 			}
 			//		this.buttons.getChildren().clear();
 			//		this.buttons.getChildren().addAll(buttons.getChildren());
@@ -1120,6 +1142,10 @@ public class App extends Application {
 			return;
 		}
 		else{
+			if (board.history.size() > 200){
+				messages.message("Game Ending as Draw", Duration.seconds(2));
+				reset();
+			}
 			Piece f = board.getPiece(m.from);
 			ArrayList<Move> moves = f.getMoves(board, m.from);
 			board.addCastleMoves(moves, m.me);
@@ -1170,6 +1196,10 @@ public class App extends Application {
 					messages.setGameState(board.gameState);
 					messages.gameOver();
 					progress.set(0.0);
+					board.flushEvaluationBuffer(evaluationWriter, board.gameState.getGameOutcome());
+					if(infinitePlay.isSelected()){
+						reset();
+					}
 				}
 				board.updateIcon();
 				int temp = board.hashCode(board.white.keys);
@@ -1230,7 +1260,7 @@ public class App extends Application {
 		board.avCount = 0;
 		board.avTotal = 0;
 		//		allowance.set(false);
-		messages.clear();
+//		messages.clear();
 		deSelect();
 		board.setUpBoard();
 		initiatePieces();
