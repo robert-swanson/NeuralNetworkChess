@@ -1,12 +1,10 @@
 package neuralnetwork;
 
+import application.App;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javafx.scene.image.ImageView;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.PrintWriter;
+import java.io.*;
 import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -41,6 +39,7 @@ public class NN {
 	private double[][][] dcdw;
 	private double[][] dcdb;
 	private double[][] dcda;
+
 
 	// Training
 	private int trainingCursor;
@@ -98,40 +97,33 @@ public class NN {
 	//  ================================================= Classifying ==============================================
 
 	/**
-	 * Tests the neural network on the provided images
-	 * @param images a list of images to test on
-	 * @return a double[2][] whose first value is the overall accuracy and whose second value arr[n] is equal to the accuracy of classifying the digit n-1
+	 * Tests the neural network on the provided boards
+	 * @param boards a list of boards to test on
+	 * @return the mean error of the tested boards
 	 */
-	public double[][] testWithImages(LinkedList<Image> images) {
-		int[] total = new int[10];
-		int successes = 0;
-		int t = images.size();
-		int[] correct = new int[10];
-		NN nn = new NN();
-		for(Image image: images) {
-			total[image.label] += 1;
-			if(nn.classify(image)==image.label) {
-				correct[image.label] += 1;
-				successes++;
+	public double testWithBoards(LinkedList<BoardEvaluation> boards) {
+		int t = boards.size();
+		double errorSum = 0;
+		int totalTested = 0;
+		double label;
+		for(BoardEvaluation board: boards) {
+			if (board.depth >= miniumDepthOfData) {
+				totalTested++;
+				errorSum += Math.abs(classify(board)-board.getLabel(labelingMethod));
 			}
 		}
-		double[] stats = new double[10];
-		for(int i = 0; i < 10; i++) {
-			stats[i] = correct[i]/(double)total[i];
-		}
-		double d = successes/(double)t;
-		return new double[][]{new double[] {d},stats};
+		return errorSum/totalTested;
 	}
 
 	/**
-	 * Classifies the given image through forward propagation
-	 * @param image the image to classify
-	 * @return the classification of the image
+	 * Classifies the given board through forward propagation
+	 * @param board the board to classify
+	 * @return the classification of the board
 	 */
-	public int classify(Image image) {
-		updateInput(image.getInput());
+	public double classify(BoardEvaluation board) {
+		updateInput(board.getExpandedBoardInputLayer());
 		propagateForward();
-		return getGuess();
+		return getOutput()[0];
 	}
 
 	// Propagates forward through the neural network
@@ -152,7 +144,6 @@ public class NN {
 			return;
 		}
 		this.input = input;
-		propagateForward();
 	}
 
 	/**
@@ -196,92 +187,55 @@ public class NN {
 	//  ================================================= Training =================================================
 
 	/**
-	 * Trains the network on all of the training data one time
+	 * Trains the network on one batch of data
+	 * @param file The file containing the training data, the cursor should be pointing at the line specified by trainingCursor
+	 * @param batchSize The number of data to be included in the batch
+	 * @return the mean error, -1 if no training occurred
+	 * @throws IOException If error reading the file
 	 */
-	public static void singleCompleteTrain() {
-		LinkedList<Image> images = Image.getTrainingImageList();
-		NN neuralNetwork = new NN();
-		neuralNetwork.trainingCursor = 0;
-		neuralNetwork.train(images, 100, .2);
-	}
+	public double trainOnBatch(RandomAccessFile file, int batchSize) throws IOException {
+		System.out.printf("Training Entry %d\n", trainingCursor);
+		double errorSum = 0;
+		int count = 0;
+		double[][][] weightVector = null;
+		double[][] biasVector = null;
+		BoardEvaluation board;
 
-	/**
-	 * Trains the current network on all of the training data repeatedly
-	 */
-	public static void infiniteTrain(int batchSize, double learningRate) {
-		LinkedList<Image> images = Image.getTrainingImageList();
-		NN neuralNetwork = new NN();//new int[] {784,36,16,10} new int[] {784,100,60,40,10}
-		while(true) {
-			if(neuralNetwork.trainingCursor == images.size()) neuralNetwork.trainingCursor = 0;
-			neuralNetwork.train(images, batchSize, learningRate);
-		}
-	}
+		for(int dataIndex = 0; dataIndex < batchSize &&  file.getFilePointer() < file.length(); dataIndex++) { //Iterates through each data set in the batch
+			board = new BoardEvaluation(file.readLine());
+			trainingCursor++;
 
-	/**
-	 * Trains the neural network on the given data
-	 * @param data the list of images to train on
-	 * @param batchSize the number of images to include in each batch
-	 * @param learningRate the speed of the learning process
-	 */
-	public void train(LinkedList<Image> data, int batchSize, double learningRate) {
-	    System.out.printf("Training starting at (%d/%d=%.0f%%) with batch size = %d and learning rate = %f\n",trainingCursor,data.size(), (double)trainingCursor/data.size()*100, batchSize, learningRate);
+			if (board.depth < miniumDepthOfData){
+				dataIndex--;
+				continue;
+			}
 
-		double seconds = getBackPropTime(data.getFirst())/1000.0;
-		System.out.println("Estimated Completion: "+getETA(seconds*batchSize, (int)Math.ceil((data.size()- trainingCursor)/batchSize)));
-		int mins = (int)(data.size()*seconds/60);
-		System.out.printf("Estimated Total Time: %dh %dm\n", mins/60, mins%60);
+			classify(board);
+			backPropagate(board.getExpandedBoardInputLayer(), new double[] {board.getLabel(labelingMethod)});
 
-		NN best = new NN("Best.txt");
-		bestAccuracy = best.testWithImages(Image.getTestImageList())[0][0];
-		System.out.printf("Starting Best Accuracy: %.3f%%\n",bestAccuracy*100);
-
-		long start = System.currentTimeMillis();
-		Image image;
-		for(int i = trainingCursor; i < data.size();) { //Iterates through each batch
-			long batchStart = System.currentTimeMillis();
-			int correct = 0;
-			image = data.get(i);
-			backPropagate(image.getInput(), image.getOutput());
-			double[][][] weightVector = dcdw;
-			double[][] biasVector = dcdb;
-			int batch = 1;
-			i++;
-			if(getGuess()==image.label) correct++;
-			for(;i%batchSize != 0 && i < data.size();i++) { //Iterates through each data set in the batch
-				image = data.get(i);
-				backPropagate(data.get(i).getInput(), data.get(i).getOutput());
-				//				printDiagnostic(image);
+			if (weightVector == null) {
+				weightVector = dcdw;
+				biasVector = dcdb;
+			} else {
 				weightVector = sumMatrix(weightVector, dcdw);
 				biasVector = sumMatrix(biasVector, dcdb);
-				batch++;
-				if(getGuess()==image.label) correct++;
 			}
-			if(batch > 0) {
-				divideMatrix(weightVector, batch);
-				divideMatrix(biasVector, batch);
-				//Make changes from batch
-				multiplyMatrix(weightVector, learningRate*-1);
-				multiplyMatrix(biases, learningRate*-1);
-				weights = sumMatrix(weights, weightVector);
-				biases = sumMatrix(biases, biasVector);
-//				System.out.printf("Batch #%d:\tAccuracy:%3.0f%%\t%2.2f%% Complete\t\tEst Complete: %s\n", i/batchSize, test(Image.getTestImageList())*100.0, (100.0*i)/data.size() ,getETA((System.currentTimeMillis()-batchStart)/1000.0, (int)Math.ceil((data.size()-i)/batchSize)));
-				double[][] results = testWithImages(Image.getTestImageList());
-				System.out.printf("%2.2f%%: Accuracy: %.3f%% ", (double)trainingCursor/data.size()*100, results[0][0]*100);
-				for(int ii = 0; ii < 10; ii++) {
-					System.out.printf("%d:%.0f%% ",ii, results[1][ii]*100);
-				}
-				trainingCursor += batch;
-				save("Current.txt");
-				if(results[0][0] > bestAccuracy) {
-					bestAccuracy = results[0][0];
-					save("Best.txt");
-					System.out.println("New Best");
-				}else {
-					System.out.println();
-				}
-			}
-
+			errorSum += Math.abs(getOutput()[0]-board.getLabel(labelingMethod));
+			count++;
 		}
+		if(count > 0) {
+			divideMatrix(weightVector, count);
+			divideMatrix(biasVector, count);
+			//Make changes from batch
+			multiplyMatrix(weightVector, learningRate*-1);
+			multiplyMatrix(biases, learningRate*-1);
+			weights = sumMatrix(weights, weightVector);
+			biases = sumMatrix(biases, biasVector);
+
+			System.out.printf("Mean Error %f\n", errorSum/count);
+			return errorSum/count;
+		}
+		return -1;
 	}
 
 	// Sets the input, propagates forward, then propagates backward
@@ -302,14 +256,14 @@ public class NN {
 	}
 
 	// Calls `backPropigate` and returns the execution time
-	private int getBackPropTime(Image image) {
+	public int getBackPropTime(BoardEvaluation board) {
 		long start = System.currentTimeMillis();
-		backPropagate(image.getInput(), image.getOutput());
+		backPropagate(board.getExpandedBoardInputLayer(), new double[]{board.getLabel(labelingMethod)});
 		return (int)(System.currentTimeMillis()-start);
 	}
 
 	// Estimates the execution time for the remaining batches
-	private String getETA(double seconds, int batchesLeft) {
+	public String getETA(double seconds, int batchesLeft) {
 		SimpleDateFormat format = new SimpleDateFormat("hh:mm aa, EEEE");
 		Calendar calender = GregorianCalendar.getInstance();
 		int secondsLeft =  (int)(batchesLeft * seconds);
@@ -515,11 +469,6 @@ public class NN {
 		System.out.println("]");
 	}
 
-	// Prints out a single line message for an individual classification
-	private void printDiagnostic(Image image) {
-		System.out.printf("%s\tCost: %.3f\tLabel: %d\t Guess: %d\n",(image.label == getGuess() ? "CORRECT" : "WRONG"),getCost(image.getOutput()), image.label, getGuess());
-	}
-
 	//  ================================================= Math =====================================================
 
 	// Calculates the sum of the bias and the product of the weight and activation values for forward propagation
@@ -662,7 +611,7 @@ public class NN {
 	}
 
 	// Calculates the sigmoid of the value
-	private double sigmoid(double x) {
+	public static double sigmoid(double x) {
 		return 1/(1+Math.exp(-x));
 	}
 
@@ -781,6 +730,14 @@ public class NN {
 			rv += String.format(" x %d",structure[i]);
 		}
 		return rv;
+	}
+
+	public int getTrainingCursor() {
+		return trainingCursor;
+	}
+
+	public void setTrainingCursor(int trainingCursor) {
+		this.trainingCursor = trainingCursor;
 	}
 
 }

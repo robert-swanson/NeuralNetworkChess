@@ -34,11 +34,11 @@ public class Messages{
 
     public void gameOver(){
         if(gameState == State.BLACKWON)
-            message("Black Won!", Duration.INDEFINITE);
+            message("Black Won!", Duration.seconds(10));
         else if(gameState == State.WHITEWON)
-            message("White Won!", Duration.INDEFINITE);
+            message("White Won!", Duration.seconds(10));
         else if(gameState == State.STALEMATE)
-            message("Stalemate!",Duration.INDEFINITE);
+            message("Stalemate!",Duration.seconds(10));
         else
             message("Game Over ERROR", Duration.seconds(3));
     }

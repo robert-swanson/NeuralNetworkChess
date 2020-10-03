@@ -11,9 +11,9 @@ import chess.pieces.*;
 
 import java.awt.Desktop;
 import java.io.*;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.Stack;
 import javafx.animation.Animation.Status;
 import javafx.animation.FadeTransition;
@@ -25,7 +25,6 @@ import javafx.animation.SequentialTransition;
 import javafx.animation.Timeline;
 import javafx.animation.Transition;
 import javafx.application.Application;
-import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
@@ -68,10 +67,13 @@ public class App extends Application {
 
 
 	//Constants
-	final double Animation_Duration = .01;
-	final static String DataSet = "depth_2.csv";
-	final static String CSVHeader = "Player, Outcome, Minimax Score, Depth, White_Pawn, White_Rook, White_Knight, White_Bishop, White_Queen, White_King, Black_Pawn, Black_Rook, Black_Knight, Black_Bishop, Black_Queen, Black_King\n";
+	final double Animation_Duration = .1;
+	public final static String DataSet = "depth_4.csv";
+	public final static String CSVHeader = "Player, Outcome, Minimax Score, Depth, White_Pawn, White_Rook, White_Knight, White_Bishop, White_Queen, White_King, Black_Pawn, Black_Rook, Black_Knight, Black_Bishop, Black_Queen, Black_King\n";
+	public final static int CSVLineLength = 302;
 	final int stop = -1;
+
+	int whiteWins = 0, blackWins = 0;
 
 	//Gameplay
 	double step;
@@ -121,7 +123,7 @@ public class App extends Application {
 	double[] draggedCoords = new double[2];
 	double[] mouseCoords = new double[2];
 
-	TrainingView trainingView;
+	LinkedList<TrainingView> trainingViews;
 	BufferedWriter evaluationWriter;
 
 
@@ -212,7 +214,7 @@ public class App extends Application {
 		//Initialize
 
 		initButtonBar();
-		trainingView = new TrainingView();
+		trainingViews = new LinkedList<>();
 
 		//Stack Pane
 		layout = new StackPane();
@@ -507,10 +509,32 @@ public class App extends Application {
 
 			Button training = new Button("Training");
 			training.setOnAction(e -> {
-				trainingView.display();
+				TrainingView tview = new TrainingView();
+				trainingViews.add(tview);
+				tview.display();
+				trainingViews.remove(tview);
+			});
+
+			Button printBNNScore = new Button("B Score");
+			printBNNScore.setOnAction(e -> {
+				double score = -board.black.objectiveScoreBoardState();
+				messages.message(String.format("Black Score: %f", score), Duration.seconds(2));
+			});
+
+			Button printWNNScore = new Button("W Score");
+			printWNNScore.setOnAction(e -> {
+				double score = board.white.objectiveScoreBoardState();
+				messages.message(String.format("White Score: %f", score), Duration.seconds(2));
 			});
 
 			infinitePlay = new CheckBox("Infinite Play");
+
+			Button resetScoreboard = new Button("Reset Score");
+			resetScoreboard.setOnAction(e -> {
+				messages.message(String.format("White: %d, Black: %d", whiteWins, blackWins), Duration.seconds(2));
+				whiteWins = 0;
+				blackWins = 0;
+			});
 
 			buttons.getChildren().addAll(sButton, reset, hist, edit);
 			if(board.rules.isUndo())
@@ -522,10 +546,13 @@ public class App extends Application {
 				buttons.getChildren().addAll(stepT);	
 			}
 			if(board.rules.isDebug()){
-				Separator sep = new Separator(Orientation.VERTICAL);
-				buttons.getChildren().addAll(sep, print, tree, sync, test, training);
+				Separator sep1 = new Separator(Orientation.VERTICAL);
+				Separator sep2 = new Separator(Orientation.VERTICAL);
+				Separator sep3 = new Separator(Orientation.VERTICAL);
+//				buttons.getChildren().addAll(sep, print, tree, sync, test, training, printWNNScore, printBNNScore);
+				buttons.getChildren().addAll(sep1, tree, sync, sep2, training, printWNNScore, printBNNScore);
 				if(board.rules.getMode() == GameMode.cvc) {
-					buttons.getChildren().add(infinitePlay);
+					buttons.getChildren().addAll(sep3, infinitePlay, resetScoreboard);
 				}
 			}
 			//		this.buttons.getChildren().clear();
@@ -1142,8 +1169,9 @@ public class App extends Application {
 			return;
 		}
 		else{
-			if (board.history.size() > 200){
+			if (board.history.size() > 300){
 				messages.message("Game Ending as Draw", Duration.seconds(2));
+				board.flushEvaluationBuffer(evaluationWriter, 0);
 				reset();
 			}
 			Piece f = board.getPiece(m.from);
@@ -1196,6 +1224,9 @@ public class App extends Application {
 					messages.setGameState(board.gameState);
 					messages.gameOver();
 					progress.set(0.0);
+					if(board.gameState == State.WHITEWON) whiteWins++;
+					else if (board.gameState == State.BLACKWON) blackWins++;
+					System.out.printf("White Wins: %d, Black Wins: %d\n", whiteWins, blackWins);
 					board.flushEvaluationBuffer(evaluationWriter, board.gameState.getGameOutcome());
 					if(infinitePlay.isSelected()){
 						reset();

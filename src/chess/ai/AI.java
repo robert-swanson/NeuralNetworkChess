@@ -17,6 +17,7 @@ import chess.pieces.Queen;
 import chess.pieces.Rook;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
+import neuralnetwork.BoardEvaluation;
 
 /**
  * Maneges the logic for the chess AI
@@ -191,7 +192,7 @@ public class AI {
 			if(!didUseTT)
 				m.score = minimax(alpha, beta, me, 1, stratagy.getDepth(), child, step);
 
-			board.addEvaluationToBuffer((me ? m.score : -m.score), stratagy.getDepth()-1, stratagy.scoringNetwork != null ? "NN" : "Minimax");
+//			board.addEvaluationToBuffer((me ? m.score : -m.score), stratagy.getDepth()-1, stratagy.scoringNetwork != null ? "NN" : "Minimax");
 			
 			m.undoMove();
 			best = setBest(best, m, true, true);
@@ -217,7 +218,7 @@ public class AI {
 		confidence = best.score;
 		progress.set(0.0);
 		board.endTimer();
-		board.printTimer("Move " + board.history.size(), confidence);
+//		board.printTimer("Move " + board.history.size(), confidence);
 		thinking = false;
 		board.addEvaluationToBuffer((me ? best.score : -best.score), stratagy.getDepth(), stratagy.scoringNetwork != null ? "NN" : "Minimax");
 		return best;
@@ -588,6 +589,34 @@ public class AI {
 			return 1;
 		return 0;
 	}
+
+	public double objectiveScoreBoardState(){
+		switch(board.gameState){
+			case BLACKWON:
+				return Integer.MIN_VALUE+1;
+			case WHITEWON:
+				return Integer.MAX_VALUE;
+			case STALEMATE:
+				return 0;
+			default:
+		}
+
+		if (stratagy.scoringNetwork != null){
+			return stratagy.scoringNetwork.classify(new BoardEvaluation(board));
+		} else {
+			double score = 0;
+			for(Piece p: board.getPieces(true).values()){
+				Point pos = p.position;
+				int dist = (p.isWhite() == board.rules.isTopPlayer()) ? pos.y-1 : 6 - pos.y;
+				score = fixFloatIssues(score + p.getValue(dist));
+			}
+			for(Piece p: board.getPieces(false).values()){
+				int dist = (p.isWhite() == board.rules.isTopPlayer()) ? p.position.y-1 : 6 - p.position.y;
+				score =  fixFloatIssues(score - p.getValue(dist));
+			}
+			return score;
+		}
+	}
 	
 	/**
 	 * Evaluates the current board according to the piece values
@@ -596,7 +625,7 @@ public class AI {
 	 */
 	public double score(boolean maximizingPlayer, Move m, ArrayList<Move> moves){
 		updateGameState(board, moves);
-		
+
 		switch(board.gameState){
 		case BLACKWON:
 			return maximizingPlayer ? Integer.MIN_VALUE : Integer.MAX_VALUE;
@@ -606,24 +635,27 @@ public class AI {
 			return 0;
 		default:
 		}
-		
-		double score = 0;
-		for(Piece p: board.getPieces(maximizingPlayer).values()){
-			Point pos = p.position;
-			int dist = (p.isWhite() == board.rules.isTopPlayer()) ? pos.y-1 : 6 - pos.y;
-			score = fixFloatIssues(score + p.getValue(dist));
-		}
-		if(m != null)
-			m.progressScore = score;
-		for(Piece p: board.getPieces(!maximizingPlayer).values().toArray(new Piece[board.getPieces(!maximizingPlayer).size()])){
-			int dist = (p.isWhite() == board.rules.isTopPlayer()) ? p.position.y-1 : 6 - p.position.y;
-			score =  fixFloatIssues(score - p.getValue(dist));
-		}
-		if(m != null)
-			m.score = score;
-		
-		return score;
 
+		if (stratagy.scoringNetwork != null){
+			return stratagy.scoringNetwork.classify(new BoardEvaluation(board));
+		} else {
+			double score = 0;
+			for(Piece p: board.getPieces(maximizingPlayer).values()){
+				Point pos = p.position;
+				int dist = (p.isWhite() == board.rules.isTopPlayer()) ? pos.y-1 : 6 - pos.y;
+				score = fixFloatIssues(score + p.getValue(dist));
+			}
+			if(m != null)
+				m.progressScore = score;
+			for(Piece p: board.getPieces(!maximizingPlayer).values().toArray(new Piece[board.getPieces(!maximizingPlayer).size()])){
+				int dist = (p.isWhite() == board.rules.isTopPlayer()) ? p.position.y-1 : 6 - p.position.y;
+				score =  fixFloatIssues(score - p.getValue(dist));
+			}
+			if(m != null)
+				m.score = score;
+
+			return score;
+		}
 	}
 	
 	public double progressScore(Move m){
@@ -707,7 +739,7 @@ public class AI {
 		}
 		private void print(int indent,int max, ArrayList<Number> lasts){
 			if(max >= 0 && indent > max) return;
-			if(indent == 0) logger.printf("%s: Move Score: %(.2f\n", (maximizing ? "MAX" : "MIN"), score);
+			if(indent == 0) logger.printf("%s: Move Score: %(f\n", (maximizing ? "MAX" : "MIN"), score);
 			if(children==null)
 				return;
 			int num = 0;

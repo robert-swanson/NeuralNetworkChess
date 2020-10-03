@@ -1,7 +1,6 @@
 package chess.board;
 import java.io.BufferedWriter;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.util.*;
 
 import chess.ai.AI;
@@ -15,7 +14,7 @@ import chess.pieces.Queen;
 import chess.pieces.Rook;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
-import neuralnetwork.NN;
+import neuralnetwork.BoardEvaluation;
 
 /**
  * Manages the black and white pieces
@@ -567,7 +566,7 @@ public class Board {
 	}
 
 	// returns 12 longs in array, one for each piece type, with a bit set for for every place in the board containing that piece
-	private long[] getCondensedBoardInputLayer(){
+	public long[] getCondensedBoardInputLayer(){
 		long[] rv = new long[12]; // w_pawns, w_rook, w_knight, w_bishop, w_queen, w_king, b_pawns, b_rook, b_knight, b_bishop, b_queen, b_king;
 
 		for (int i = 0; i < 64; i++) {

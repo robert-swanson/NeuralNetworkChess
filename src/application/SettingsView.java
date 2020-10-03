@@ -324,7 +324,8 @@ public class SettingsView{
 				scoringMethods.addAll("Standard", "Add New Model");
 
 				ComboBox<String> cScoring = new ComboBox<>(scoringMethods);
-				cScoring.setValue("Standard");
+				String model = getStrat(cPlayer.getValue()).getScoringNetworkFilePath();
+				cScoring.setValue(model.isEmpty() ? "Standard" : model);
 
 				Label scoringMethodLabel = new Label("Scoring Method");
 				mSM.getChildren().addAll(scoringMethodLabel, cScoring);
@@ -482,7 +483,7 @@ public class SettingsView{
 		scoreMethod.valueProperty().addListener(e -> {
 			String filename = scoreMethod.getValue().toString();
 			if(filename.equals("Add New Model")){
-				TextInputDialog dialog = new TextInputDialog("testmodel 768 1000 1000 1");
+				TextInputDialog dialog = new TextInputDialog("testmodel 768 200 200 1");
 				dialog.setTitle("Add New Model");
 				dialog.setHeaderText("Define the model name and network structure: \"[model name] 768 [hidden layers] 1\"");
 
@@ -509,7 +510,10 @@ public class SettingsView{
 					}
 				});
 
-			}else{
+			} else if(filename.equals("Standard")){
+				strat.scoringNetwork = null;
+				strat.setScoringNetworkFilePath("");
+			} else {
 				if (!filename.endsWith(".txt")) {
 					filename += ".txt";
 				}

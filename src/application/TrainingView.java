@@ -1,5 +1,7 @@
 package application;
 
+import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -9,13 +11,13 @@ import javafx.scene.control.*;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
-import javafx.stage.Modality;
 import javafx.stage.Stage;
+import neuralnetwork.BoardEvaluation;
 import neuralnetwork.NN;
 
-import java.io.File;
 import java.io.FileNotFoundException;
-import java.util.Scanner;
+import java.io.IOException;
+import java.io.RandomAccessFile;
 
 public class TrainingView {
     Stage window;
@@ -24,7 +26,10 @@ public class TrainingView {
 
     HBox progressBox;
     ProgressBar progressBar;
-    Label timeLeftL;
+    SimpleDoubleProperty progress;
+    Label etaL;
+    SimpleStringProperty eta;
+    long dataLines;
 
     HBox modelBox;
     Label modelL;
@@ -37,6 +42,7 @@ public class TrainingView {
     ComboBox<String> trainingLabelValue;
 
     Label evaluation;
+    SimpleStringProperty eval;
 
     TextField learningRate;
     Label learningRateL;
@@ -46,28 +52,41 @@ public class TrainingView {
     Label minimumDepthOfDataL;
     HBox minimumDepthOfDataBox;
 
+    TextField batchSize;
+    Label batchSizeL;
+    HBox batchSizeBox;
+
     CheckBox learnFromOwnData;
     Label learnFromOwnDataL;
     HBox learnFromOwnDataBox;
 
     HBox buttonsBox;
     Button startPause;
+    SimpleStringProperty buttonText;
     Button save;
 
     NN model;
-    Scanner data;
+    RandomAccessFile data;
+    int batchSizeNum = 10;
+
+    TrainingProcess trainingProcess;
 
     public void display(){
+        window = new Stage();
         // Progress Bar
         progressBar = new ProgressBar();
         progressBar.setProgress(0.0);
         progressBar.setPrefWidth(350);
+        progress = new SimpleDoubleProperty(0.0);
+        progressBar.progressProperty().bind(progress);
 
-        timeLeftL = new Label("Time Left: 0m");
+        etaL = new Label();
+        eta = new SimpleStringProperty("Time Left: 0m");
+        etaL.textProperty().bind(eta);
 
         progressBox = new HBox();
         App.SetUpHBoxCentered(progressBox);
-        progressBox.getChildren().addAll(progressBar, timeLeftL);
+        progressBox.getChildren().addAll(progressBar, etaL);
 
         // Model Selection
         modelL = new Label("Training Label:");
@@ -95,9 +114,11 @@ public class TrainingView {
 
         // Evaluation
         evaluation = new Label("Evaluation: --");
+        eval = new SimpleStringProperty("Evaluation: --");
+        evaluation.textProperty().bind(eval);
 
         // Learning Rate
-        learningRateL = new Label("Learning Rate:");
+        learningRateL = new Label("Learning Rate");
 
         learningRate = new TextField();
         setLearningRateListener();
@@ -107,7 +128,7 @@ public class TrainingView {
         learningRateBox.getChildren().addAll(learningRateL, learningRate);
 
         // Minimum Depth of Data
-        minimumDepthOfDataL = new Label("Minimum Depth of Data:");
+        minimumDepthOfDataL = new Label("Minimum Depth of Data");
 
         minimumDepthOfData = new TextField();
         setMinimumDepthOfDataListener();
@@ -116,8 +137,18 @@ public class TrainingView {
         App.SetUpHBoxLeft(minimumDepthOfDataBox);
         minimumDepthOfDataBox.getChildren().addAll(minimumDepthOfDataL, minimumDepthOfData);
 
+        // Batch Size
+        batchSizeL = new Label("Batch Size");
+
+        batchSize = new TextField("10");
+        setBatchSizeListener();
+
+        batchSizeBox = new HBox();
+        App.SetUpHBoxLeft(batchSizeBox);
+        batchSizeBox.getChildren().addAll(batchSizeL, batchSize);
+
         // Learn from own data
-        learnFromOwnDataL = new Label("Learn From Own Data: ");
+        learnFromOwnDataL = new Label("Learn From Own Data");
 
         learnFromOwnData = new CheckBox();
         setLearnFromOwnDataListener();
@@ -128,18 +159,41 @@ public class TrainingView {
 
         // Buttons
         startPause = new Button("Start");
+        startPause.setDisable(true);
+        setStartPauseListener();
+        buttonText = new SimpleStringProperty("Start");
+        startPause.textProperty().bind(buttonText);
 
         save = new Button("Save Model");
         save.setDisable(true);
         save.setOnAction(e -> saveModel());
 
+        Button refreshFile = new Button("Refresh File");
+        refreshFile.setOnAction(e -> {
+            if (!trainingProcess.isAlive()){
+                loadDataSet();
+            }
+        });
+
+        Button restartTraining = new Button("Reset Cursor");
+        restartTraining.setOnAction(e -> {
+            if (model != null && !trainingProcess.isAlive()){
+                model.setTrainingCursor(0);
+                loadDataSet();
+                updateEvaluation();
+            }
+        });
+
+        Button updateEvaluationButton = new Button("Update Evaluation");
+        updateEvaluationButton.setOnAction(e -> updateEvaluation());
+
         buttonsBox = new HBox();
         App.SetUpHBoxCentered(buttonsBox);
-        buttonsBox.getChildren().addAll(startPause, save);
+        buttonsBox.getChildren().addAll(startPause, save, refreshFile, restartTraining, updateEvaluationButton);
 
         // VBox
         vBox = new VBox();
-        vBox.getChildren().addAll(modelBox, structureL, trainingLabelValueBox, evaluation, learningRateBox, minimumDepthOfDataBox, learnFromOwnDataBox);
+        vBox.getChildren().addAll(modelBox, structureL, trainingLabelValueBox, evaluation, learningRateBox, minimumDepthOfDataBox, batchSizeBox, learnFromOwnDataBox);
         vBox.getChildren().forEach(e -> VBox.setMargin(e, new Insets(0, 10, 0, 10)));
         App.SetUpVBoxLeft(vBox);
 
@@ -153,10 +207,14 @@ public class TrainingView {
         BorderPane.setMargin(progressBox, new Insets(10, 10, 10, 10));
         BorderPane.setMargin(buttonsBox, new Insets(10, 10, 10, 10));
 
+        // Load File
+        loadDataSet();
+
+        // Initialize Thread
+        trainingProcess = new TrainingProcess(progress, eta, eval, buttonText);
+
         // Window
         Scene s = new Scene(layout);
-        window = new Stage();
-        window.initModality(Modality.APPLICATION_MODAL);
         window.setTitle("Training");
         window.setWidth(500);
         window.setHeight(400);
@@ -165,10 +223,22 @@ public class TrainingView {
         window.centerOnScreen();
         window.showAndWait();
 
+    }
+
+    public void loadDataSet(){
         try {
-            data = new Scanner(new File(getClass().getResource("../resources/").getPath()+App.DataSet));
+            String path = getClass().getResource("../resources/").getPath()+"shuffled.csv";
+            data = new RandomAccessFile(path, "r");
+            data.seek(App.CSVHeader.length());
+            dataLines = (data.length() - App.CSVHeader.length()) / App.CSVLineLength;
+
+            if(model != null){
+                progress.setValue((double)(model.getTrainingCursor())/(dataLines));
+            }
         } catch (FileNotFoundException e) {
             System.err.println("Could Not Load Data set: resources/"+App.DataSet);
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
@@ -179,6 +249,8 @@ public class TrainingView {
             try {
                 NN newModel = new NN(filename);
                 loadModel(newModel);
+
+
             } catch (Exception error) {
                 System.err.println("Failed to load model: " + error.getMessage());
                 modelSelection.setValue("");
@@ -212,7 +284,18 @@ public class TrainingView {
                 model.setMiniumDepthOfData(Integer.parseInt(val));
                 save.setDisable(false);
             } else {
-                learningRate.setText(Double.toString(model.getMiniumDepthOfData()));
+                minimumDepthOfData.setText(Integer.toString(model.getMiniumDepthOfData()));
+            }
+        });
+    }
+
+    private void setBatchSizeListener(){
+        batchSize.textProperty().addListener(e -> {
+            String val = minimumDepthOfData.getText();
+            if (val.matches("\\d+")){
+                batchSizeNum = Integer.parseInt(val);
+            } else {
+                batchSize.setText(Integer.toString(batchSizeNum));
             }
         });
     }
@@ -230,15 +313,78 @@ public class TrainingView {
     }
 
     private void loadModel(NN newModel) {
-       model = newModel;
+        window.setTitle(modelSelection.getValue());
+        model = newModel;
 
-       structureL.setText(model.getStructure());
-       trainingLabelValue.setValue(model.getLabelingMethod() == NN.LabelingMethod.GameOutcome ? "Game Outcome" : "Minimax Score");
-       learningRate.setText(Double.toString(model.getLearningRate()));
-       minimumDepthOfData.setText(Integer.toString(model.getMiniumDepthOfData()));
-       learnFromOwnData.setSelected(model.isLearnFromOwnData());
+        structureL.setText(model.getStructure());
+        trainingLabelValue.setValue(model.getLabelingMethod() == NN.LabelingMethod.GameOutcome ? "Game Outcome" : "Minimax Score");
+        learningRate.setText(Double.toString(model.getLearningRate()));
+        minimumDepthOfData.setText(Integer.toString(model.getMiniumDepthOfData()));
+        learnFromOwnData.setSelected(model.isLearnFromOwnData());
+
+        progress.setValue((double)(model.getTrainingCursor())/(dataLines));
+        startPause.setDisable(false);
+        updateEvaluation();
     }
 
+    private void updateEvaluation(){
+        eval.setValue(String.format("Mean Error: %.2f, Cursor: %d/%d", trainingProcess.eval, model.getTrainingCursor(), dataLines));
+    }
 
+    private void setStartPauseListener(){
+       startPause.setOnAction(e -> {
+           System.out.println("*");
+           if(startPause.getText().equals("Start")){
+               if(trainingProcess.isAlive()) {
+                   System.out.println("Wait until the other process is done");
+               } else {
+                   buttonText.setValue("Pause");
+                   trainingProcess = new TrainingProcess(progress, eta, eval, buttonText);
+                   trainingProcess.start();
+               }
+           } else {
+               buttonText.setValue("Start");
+           }
+       });
+
+    }
+
+    class TrainingProcess extends Thread {
+        SimpleDoubleProperty pg;
+        SimpleStringProperty et;
+        SimpleStringProperty ev;
+        SimpleStringProperty bt;
+
+        double eval = -1;
+
+        public TrainingProcess(SimpleDoubleProperty pg, SimpleStringProperty et, SimpleStringProperty ev, SimpleStringProperty bt) {
+            this.pg = pg;
+            this.et = et;
+            this.ev = ev;
+            this.bt = bt;
+        }
+
+        private void updateProgressBar(){
+            pg.setValue((double)(model.getTrainingCursor())/(dataLines));
+        }
+
+        @Override
+        public void run() {
+            while (startPause.getText().equals("Pause") && model.getTrainingCursor() < dataLines) {
+                try {
+                    eval = model.trainOnBatch(data, batchSizeNum);
+                    saveModel();
+                    updateProgressBar();
+                    //updateEvaluation(eval);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    return;
+                }
+            }
+            if(model.getTrainingCursor() >= dataLines) {
+                System.out.println("Done Training");
+            }
+        }
+    }
 
 }
